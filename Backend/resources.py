@@ -1017,11 +1017,11 @@ class UpcomingMedications(Resource):
             slots.extend(['breakfast_before', 'breakfast_after'])
         if 10 <= current_hour < 15:
             slots.extend(['lunch_before', 'lunch_after'])
-        if 16 <= current_hour < 22:
+        if 16 <= current_hour < 23:
             slots.extend(['dinner_before', 'dinner_after'])
 
         if not slots:
-            return {"upcoming_medications": []}, 200
+            return {"upcoming medications": []}, 200
 
         result = []
 
@@ -1048,6 +1048,8 @@ class UpcomingMedications(Resource):
         else:
             return {"error": "Unauthorized role"}, 403
 
+        if (not result):
+            return {"message": "No medicine found"}, 404
         return {"upcoming_medications": result}, 200
 
 

@@ -15,7 +15,8 @@ signup_model = api.model('SignUp', {
     'password': fields.String(required=True),
     'confirm_password': fields.String(required=True),
     'role': fields.String(required=False, default='senior_citizen'),
-    'profile_picture': fields.String(required=False)
+    'profile_picture': fields.String(required=False),
+    'relation': fields.String(required=False),
 })
 
 login_model = api.model('Login', {
@@ -40,7 +41,8 @@ class Signup(Resource):
             last_name=data['last_name'],
             username=data['username'],
             role=data.get('role', 'user'),
-            profile_picture=data.get('profile_picture')
+            profile_picture=data.get('profile_picture'),
+            relation=data.get('relation')
         )
         user.set_password(data['password'])
         

@@ -1,8 +1,8 @@
-"""initial
+"""added realtion column in user table
 
-Revision ID: 3687cd9f001b
+Revision ID: c0fdf2705e80
 Revises: 
-Create Date: 2025-06-26 17:10:31.791136
+Create Date: 2025-06-29 21:49:28.521635
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '3687cd9f001b'
+revision = 'c0fdf2705e80'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -27,6 +27,7 @@ def upgrade():
     sa.Column('profile_picture', sa.String(length=200), nullable=True),
     sa.Column('password_hash', sa.String(length=128), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('relation', sa.String(length=50), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('username')
     )
@@ -57,6 +58,7 @@ def upgrade():
     sa.Column('image', sa.String(length=200), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('is_approved', sa.Boolean(), nullable=True),
+    sa.Column('status', sa.String(length=20), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
