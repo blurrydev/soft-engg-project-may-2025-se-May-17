@@ -33,7 +33,7 @@ const routes = [
         path: '/caregiver/manage/dependent',
         meta: { 
             requiresAuth: false,
-            allowedRoles: ['caregiver', 'all'] // ONLY caregivers can access this
+            allowedRoles: ['caregiver', 'all'] //if 'all' is present, it means any user can access this route
         }
     },
     {
@@ -52,7 +52,7 @@ const routes = [
         component: DependentProfile,
         meta: { 
             requiresAuth: false, 
-            allowedRoles: ['caregiver', 'senior_citizen', 'all'] // Both can view profiles
+            allowedRoles: ['caregiver', 'senior_citizen', 'all'] 
         }
     },
 ];
