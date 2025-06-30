@@ -203,3 +203,14 @@ export async function addMedicationToDependent(userId, medMapData) {
     medicineTitle: medicine ? medicine.title : 'Unknown Medicine',
   };
 }
+
+export async function searchMedicines(query) {
+  await simulateDelay(300);
+  console.log(`[Mock API] GET /api/medicines?search=${query}`);
+  if (!query) return { success: false, message: 'Medication not found.' };
+
+  return db.medicines.filter(med =>
+    med.title.toLowerCase().includes(query.toLowerCase())
+  );
+}
+

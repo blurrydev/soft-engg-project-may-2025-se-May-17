@@ -8,6 +8,7 @@ import ManageDependents from './components/ManageDependents.vue';
 import DependentProfile from './components/DependentProfile.vue';
 import AccessDenied from './components/AccessDenied.vue';
 import SeniorCitizenDashboard from './components/SeniorCitizenDashboard.vue';
+import AdminDashboard from './components/AdminDashboard.vue';
 
 const routes = [
     // --- Public Routes ---
@@ -51,6 +52,16 @@ const routes = [
         name: 'SeniorCitizenDashboard',
         component: SeniorCitizenDashboard,
         path: '/senior',
+        meta: { 
+            requiresAuth: false,
+            requiresHasDep: false,
+            // NO `allowedRoles` key means ANY logged-in user can access it.
+        }
+    },
+    {
+        name: 'AdminDashboard',
+        component: AdminDashboard,
+        path: '/admin',
         meta: { 
             requiresAuth: false,
             requiresHasDep: false,
