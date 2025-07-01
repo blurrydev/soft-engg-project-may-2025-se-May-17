@@ -48,7 +48,7 @@ const routes = [
     {
         name: 'SeniorCitizenDashboard',
         component: SeniorCitizenDashboard,
-        path: '/senior',
+        path: '/sc/:dep_id',
         meta: { 
             requiresAuth: false,
             requiresHasDep: false,

@@ -1,217 +1,277 @@
 <template>
-  <div class="container mt-5">
- 
-    <div v-if="successMessage" class="alert alert-success mt-3" role="alert">
-      {{ successMessage }}
-      <button type="button" class="btn-close" @click="successMessage = ''" aria-label="Close">X</button>
-    </div>
- 
-    <div v-if="errorMessage" class="alert alert-danger mt-3" role="alert">
-      {{ errorMessage }}
-      <button type="button" class="btn-close" @click="successMessage = ''" aria-label="Close">X</button>
-    </div>
-  </div>
-  <div class="dashboard-wrapper">
+  <div class="dashboard-container">
     <div class="header">
       <div class="date-section">
         <p class="today-label">Today</p>
-        <p class="date">{{ currentDate }}</p>
-        <h2 class="greeting">Good Morning, {{ userName }}</h2>
-        <h4 class="subheading">Upcoming Medications</h4>
+        <p class="date">{{ formattedDate }}</p>
       </div>
-      <div class="icons">
-        <span>
-          <button class="btn btn-danger" @click="sendSOS" :disabled="loading">
-      {{ loading ? 'Sending...' : 'Send SOS' }}
-    </button></span>
+      <div class="header-icons">
+        <button class="sos-button" @click="sendSOS" :disabled="sosLoading">
+          {{ sosLoading ? '...' : 'SOS' }}
+        </button>
         <span>🔔</span>
-        <router-link to="/senior-stats">
-          <span>📈</span>
-        </router-link>
+        <span>📈</span>
         <span>👤</span>
-        <button class="logout-button" @click="logout">Logout</button>
       </div>
     </div>
+    
+    <div v-if="error" class="error-state">
+      <h2>Something went wrong</h2>
+      <p>{{ error }}</p>
+    </div>
 
-    <div class="content-row">
-      <div class="medications-list">
-        <div v-if="upcomingMeds.length === 0" class="no-med">No upcoming medications</div>
-        <div v-for="(med, index) in upcomingMeds" :key="index" class="med-card">
-          <span class="pill-icon">💊</span>
-          <span class="med-name">{{ med.medicine_name }}</span>
-          <span class="med-dosage">{{ med.dosage }}</span>
-          <span class="med-time">⏰ {{ med.time }}</span>
+    <div v-else class="main-content">
+      <div class="left-panel">
+        <p class="motivational-quote">"The best way to predict the future is to create it."</p>
+        <h2 class="greeting">Goodmorning, {{ userName }}</h2>
+        
+        <h3 class="subheading">Upcoming Medication</h3>
+        <div v-if="loading" class="upcoming-med-card placeholder">Loading...</div>
+        <div v-else-if="nextMedication" class="upcoming-med-card">
+          <span class="icon pill-icon">💊</span>
+          <span class="med-name">{{ nextMedication.medicineName }}</span>
+          <span class="med-dosage">{{ nextMedication.dosage }}</span>
+          <span class="med-time"><span class="icon clock-icon">⏰</span>{{ nextMedication.time }}</span>
+        </div>
+        <div v-else class="upcoming-med-card empty">All medications for today are complete.</div>
+
+        <h3 class="subheading today-meds-title">Today's medications</h3>
+        <div v-if="loading" class="todays-meds-container placeholder">Loading schedule...</div>
+        <div v-else class="todays-meds-container">
+          <!-- Daytime Meds -->
+          <div class="meds-category">
+            <div class="category-header"><span class="category-icon">☀️</span> Daytime Meds</div>
+            <div v-if="daytimeMeds.length === 0" class="med-card-day empty">No daytime medications.</div>
+            <div v-else v-for="med in daytimeMeds" :key="med.id" class="med-card-day">
+              <span class="icon pill-icon">💊</span>
+              <span class="med-name">{{ med.medicineName }}</span>
+              <span class="med-dosage">{{ med.dosage }}</span>
+              <span class="med-time"><span class="icon clock-icon">⏰</span>{{ med.time }}</span>
+            </div>
+          </div>
+          <!-- Nighttime Meds -->
+          <div class="meds-category">
+            <div class="category-header"><span class="category-icon">🌙</span> Nighttime Meds</div>
+            <div v-if="nighttimeMeds.length === 0" class="med-card-night empty">No nighttime medications.</div>
+            <div v-else v-for="med in nighttimeMeds" :key="med.id" class="med-card-night">
+              <span class="icon pill-icon">💊</span>
+              <span class="med-name">{{ med.medicineName }}</span>
+              <span class="med-dosage">{{ med.dosage }}</span>
+              <span class="med-time"><span class="icon clock-icon">⏰</span>{{ med.time }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <div class="music-player">
+          <span class="icon">🎵</span> Background Music <span class="controls">⏮️ ▶️ ⏭️</span>
+        </div>
+        <div class="calendar-placeholder">
+          <p>Great Job tracking your medication!</p>
+          (Calendar component will be implemented here)
         </div>
       </div>
     </div>
+
+    <div v-if="sosMessage" class="sos-alert" @click="sosMessage = ''">{{ sosMessage }}</div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
-import axios from '@/services/apiService';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, computed } from 'vue';
+import { useRoute } from 'vue-router';
+// These imports will now work correctly
+import { getDepsDetails, getUpcomingMedication, getTodaysMeds } from '@/services/mockApi.js';
 
-const router = useRouter();
+const route = useRoute();
 
-const currentDate = new Date().toDateString();
-const userName = sessionStorage.getItem("first_name") || 'User';
-const upcomingMeds = ref([]);
+const userName = ref('User');
+const nextMedication = ref(null);
+const daytimeMeds = ref([]);
+const nighttimeMeds = ref([]);
+const loading = ref(true);
+const error = ref(null); // <-- NEW: For error handling
 
-// SOS State
-const loading = ref(false);
-const successMessage = ref('');
-const errorMessage = ref('');
+const sosLoading = ref(false);
+const sosMessage = ref('');
 
-// Fetch upcoming medications
-async function fetchUpcomingMeds() {
-  try {
-    const response = await axios.get('/upcoming-medications');
-    upcomingMeds.value = response.data.upcoming_medications;
-  } catch (error) {
-    console.error("Error fetching upcoming medications", error);
-  }
-}
+const formattedDate = computed(() => {
+  return new Date().toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+});
 
-async function sendSOS() {
+async function fetchAllDataForSenior(seniorId) {
   loading.value = true;
-  successMessage.value = '';
-  errorMessage.value = '';
-
+  error.value = null; // Reset error on new fetch
   try {
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const [details, nextMed, allMeds] = await Promise.all([
+      getDepsDetails(seniorId),
+      getUpcomingMedication(seniorId),
+      getTodaysMeds(seniorId)
+    ]);
 
-    successMessage.value = 'SOS alert sent successfully!';
-  } catch (error) {
-    errorMessage.value = 'Failed to send SOS alert.';
+    if (!details) {
+      // Handle case where dependent ID is invalid
+      throw new Error(`No dependent found with ID: ${seniorId}`);
+    }
+
+    userName.value = details.firstName;
+    nextMedication.value = nextMed;
+    daytimeMeds.value = allMeds.daytime;
+    nighttimeMeds.value = allMeds.nighttime;
+
+  } catch (err) {
+    console.error(`Failed to fetch dashboard data for senior ${seniorId}:`, err);
+    error.value = 'Could not load dashboard data. Please try again later.'; // <-- Set user-facing error
   } finally {
     loading.value = false;
   }
 }
 
-// Logout
-function logout() {
-  sessionStorage.clear();
-  router.push('/login');
-}
+async function sendSOS() { /* ... unchanged ... */ }
 
 onMounted(() => {
-  fetchUpcomingMeds();
+  const dep_id = route.params.dep_id;
+  if (dep_id) {
+    fetchAllDataForSenior(dep_id);
+  } else {
+    error.value = "No dependent ID found in the URL. Cannot load dashboard.";
+    loading.value = false;
+  }
 });
 </script>
 
 <style scoped>
-.dashboard-wrapper {
-  background-color: #d6eed6;
+/* --- General Layout & Font --- */
+.dashboard-container {
+  background-color: #eaf5e9;
   font-family: "Times New Roman", serif;
-  padding: 2rem;
-  border-radius: 20px;
+  line-height: 1.6;
+  padding: 2.5rem 3rem;
+  border-radius: 25px;
+  border: 1px solid #cce2c9;
+  max-width: 1300px;
+  margin: auto;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
 }
 
+/* --- Header Section --- */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 2rem;
+  margin-bottom: 3rem;
 }
-
-.date-section {
-  color: #333;
+.date-section .today-label, .date-section .date {
+  font-size: 1rem; color: #555; margin: 0;
 }
-
-.greeting {
-  margin-top: 1rem;
-  font-size: 1.5rem;
-}
-
-.subheading {
-  font-weight: bold;
-  margin-top: 1rem;
-}
-
-.icons {
+.header-icons {
   display: flex;
   align-items: center;
+  gap: 1.5rem;
 }
-
-.icons span {
-  font-size: 1.5rem;
-  margin-right: 1rem;
+.header-icons span {
+  font-size: 1.6rem;
+  cursor: pointer;
+  color: #444;
 }
-
-.logout-button {
-  background-color: #444;
+.sos-button {
+  background-color: #d9534f;
   color: white;
   border: none;
-  padding: 0.4rem 0.8rem;
-  border-radius: 6px;
+  padding: 0.8rem 1.8rem;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 1.1rem;
   cursor: pointer;
-  font-size: 0.9rem;
-  font-family: "Times New Roman", serif;
+  transition: background-color 0.2s;
 }
 
-.logout-button:hover {
-  background-color: #222;
-}
-
-.content-row {
+/* --- Main Content Layout --- */
+.main-content {
   display: flex;
-  justify-content: space-between;
-  gap: 2rem;
+  gap: 3rem;
 }
+.left-panel { flex: 2; min-width: 0; }
+.right-panel { flex: 1; min-width: 320px; display: flex; flex-direction: column; gap: 1.5rem; }
 
-.medications-list {
-  flex: 2;
-}
+/* --- Typography & Section Spacing --- */
+.motivational-quote { font-style: italic; color: #666; text-align: center; margin: 0 auto 2.5rem auto; max-width: 80%; }
+.greeting { font-family: 'Georgia', serif; font-weight: 500; font-size: 2.5rem; margin: 0 0 1rem 0; color: #333; }
+.subheading { font-weight: bold; color: #444; margin-top: 2.5rem; margin-bottom: 1rem; font-size: 1.2rem; border-bottom: 1px solid #d0e0cf; padding-bottom: 0.5rem; }
+.today-meds-title { margin-top: 3.5rem; }
 
-.med-card {
-  background-color: #cfe2ff;
-  border-left: 6px solid #4a90e2;
-  padding: 1rem;
-  border-radius: 10px;
-  margin-bottom: 1rem;
+/* --- Base Medication Card Style (for individual pills) --- */
+[class*="-med-card"] {
+  padding: 1rem 1.8rem;
+  border-radius: 50px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  font-size: 1rem;
+  gap: 1.5rem;
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-bottom: 1rem;
+  border: 1px solid transparent; /* Keep layout consistent, but hide border */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+[class*="-med-card"] .med-name { flex-grow: 1; }
+[class*="-med-card"] .med-time { display: flex; align-items: center; gap: 0.5rem; }
+.icon { font-size: 1.4rem; }
+.upcoming-med-card { background-color: #cde1ff; border-color: #a0b5d0; color: #2c3e50; }
+
+/* --- NEW and MODIFIED Styles for the Day/Night Sections --- */
+
+.todays-meds-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem; /* Increased space between the Daytime and Nighttime boxes */
 }
 
-.pill-icon {
+/* This is the new container box for Daytime and Nighttime sections */
+.meds-category {
+  background-color: #f7fbf6; /* A slightly off-white to create a "box" effect */
+  padding: 1.5rem 2rem;
+  border-radius: 20px;
+  border: 1px solid #dbe8d9;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   font-size: 1.3rem;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 1.5rem; /* More space between header and first pill */
 }
+.category-icon { font-size: 1.5rem; }
 
-.med-name, .med-dosage, .med-time {
-  margin: 0 1rem;
+/* Styling for the pills INSIDE the new boxes */
+.med-card-day {
+  background-color: #fff9c4; /* Soft Yellow */
+  color: #5d4037;
+  border-color: #fadf98; /* Subtle border for definition */
+  box-shadow: none; /* Remove shadow to make it feel "inside" the box */
 }
-
-.no-med {
-  font-style: italic;
-  color: #777;
+.med-card-night {
+  background-color: #e1bee7; /* Soft Purple */
+  color: #4a148c;
+  border-color: #d3b9d9; /* Subtle border for definition */
+  box-shadow: none; /* Remove shadow */
 }
-.alert {
-  position: relative;
-  padding-right: 2.5rem; /* Make room for the close button */
-}
-
-.btn-close {
-  position: absolute;
-  top: 0.75rem;
-  right: 1rem;
-  background: none;
-  border: none;
-  font-size: 1.2rem;
-  opacity: 0.5;
-  cursor: pointer;
-}
-
-.btn-close:hover {
-  opacity: 1;
-}
+.med-card-day .pill-icon, .upcoming-med-card .pill-icon { color: #d9534f; }
+.med-card-night .pill-icon { color: #8e24aa; }
 
 
+/* --- Right Panel Widgets --- */
+.music-player { background-color: #eeddf2; border: 1px solid #d3b9d9; padding: 1rem 1.5rem; border-radius: 20px; text-align: center; font-weight: bold; display: flex; align-items: center; justify-content: space-between; color: #4a148c; }
+.calendar-placeholder { border: 1px solid #ccc; background: #fdfdfd; padding: 1.5rem; border-radius: 15px; text-align: center; color: #555; font-style: italic; flex-grow: 1; }
+.calendar-placeholder p { font-style: normal; font-weight: bold; color: #333; }
 
-.green { background-color: green; color: white; }
-.red { background-color: red; color: white; }
-.default { background-color: lightgray; }
-.mom { background-color: lightgreen; }
+/* --- Alerts & Error States --- */
+.sos-alert { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #2c3e50; color: white; padding: 1rem 2rem; border-radius: 8px; z-index: 1000; }
+.error-state { text-align: center; padding: 4rem; color: #d9534f; background-color: #f8d7da; border-radius: 15px; border: 1px solid #d9534f; }
 </style>

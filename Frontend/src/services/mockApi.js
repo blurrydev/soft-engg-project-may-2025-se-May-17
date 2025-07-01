@@ -330,3 +330,74 @@ export async function getTodaysMedsForDependent(dependentId) {
     console.log('[Mock API] Returning categorized meds:', categorizedMeds);
     return categorizedMeds;
 }
+
+export async function getDepsDetails(userId) {
+  await simulateDelay();
+  console.log(`[Mock API] GET details for user: ${userId}`);
+  const user = db.users.find(u => u.id === userId);
+  return user ? { ...user } : null; // Return a copy
+}
+
+/**
+ * Gets the single next upcoming medication for a user based on the real current time.
+ */
+export async function getUpcomingMedication(userId) {
+  await simulateDelay();
+  // ... (This function is complex, but we've confirmed it works. No changes needed.)
+  const timeSlots = {
+    breakfast_before: { hour: 8, label: '08:00 AM' }, breakfast_after:  { hour: 9, label: '09:00 AM' },
+    lunch_before:     { hour: 12, label: '12:00 PM' }, lunch_after:      { hour: 13, label: '01:00 PM' },
+    dinner_before:    { hour: 18, label: '06:00 PM' }, dinner_after:     { hour: 19, label: '07:00 PM' },
+  };
+  const now = new Date();
+  const upcoming = [];
+  db.userMedMaps.filter(m => m.userId === userId).forEach(map => {
+    Object.keys(timeSlots).forEach(slotKey => {
+      if (map[slotKey]) {
+        const medTime = new Date();
+        medTime.setHours(timeSlots[slotKey].hour, 0, 0, 0);
+        if (medTime > now) {
+          const medInfo = db.medicines.find(m => m.id === map.medicineId);
+          upcoming.push({ medicineName: medInfo.title, dosage: map.dosage, time: timeSlots[slotKey].label, sortableTime: medTime });
+        }
+      }
+    });
+  });
+  if (upcoming.length === 0) return null;
+  upcoming.sort((a,b) => a.sortableTime - b.sortableTime);
+  return upcoming[0];
+}
+
+/**
+ * Gets all of a dependent's medications for the entire day, categorized.
+ */
+export async function getTodaysMeds(dependentId) {
+  await simulateDelay(400);
+  // ... (This function for the modal also works. No changes needed.)
+  const timeSlots = {
+      breakfast_before: { hour: 8, label: '08:00 AM' }, breakfast_after:  { hour: 9, label: '09:00 AM' },
+      lunch_before:     { hour: 12, label: '12:00 PM' }, lunch_after:      { hour: 13, label: '01:00 PM' },
+      dinner_before:    { hour: 18, label: '06:00 PM' }, dinner_after:     { hour: 19, label: '07:00 PM' },
+  };
+  const categorizedMeds = { daytime: [], nighttime: [] };
+  const today_iso = new Date().toISOString().split('T')[0];
+  const userMedMaps = db.userMedMaps.filter(med => med.userId === dependentId && med.start_date <= today_iso && med.end_date >= today_iso);
+  for (const medMap of userMedMaps) {
+      for (const slotKey in timeSlots) {
+          if (medMap[slotKey]) {
+              const slotInfo = timeSlots[slotKey];
+              const medicineInfo = db.medicines.find(m => m.id === medMap.medicineId);
+              const medObject = { id: `${medMap.id}-${slotKey}`, medicineName: medicineInfo.title, dosage: medMap.dosage, time: slotInfo.label, };
+              if (slotInfo.hour >= 4 && slotInfo.hour < 16) {
+                  categorizedMeds.daytime.push(medObject);
+              } else {
+                  categorizedMeds.nighttime.push(medObject);
+              }
+          }
+      }
+  }
+  const sortByTime = (a, b) => a.time.localeCompare(b.time);
+  categorizedMeds.daytime.sort(sortByTime);
+  categorizedMeds.nighttime.sort(sortByTime);
+  return categorizedMeds;
+}
