@@ -10,9 +10,7 @@
       </div>
       <div class="icons">
         <span>🔔</span>
-        <router-link to="/caregiver-stats">
-          <span>📈</span>
-        </router-link>       
+        <router-link to="/caregiver-stats"><span>📈</span></router-link>
         <span>👤</span>
       </div>
     </div>
