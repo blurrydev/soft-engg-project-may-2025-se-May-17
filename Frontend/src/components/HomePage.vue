@@ -63,45 +63,29 @@
     <!-- CALENDAR -->
     <div class="calendar-section">
       <div class="calendar-header">
-        <button
-          class="legend mom"
-          :class="{ active: currentCalendar === 'Mom' }"
-          @click="changeCalendar('Mom')"
-        >
-          Mom
-        </button>
-        <button
-          class="legend dad"
-          :class="{ active: currentCalendar === 'Dad' }"
-          @click="changeCalendar('Dad')"
-        >
-          Dad
-        </button>
-        <button
-          class="legend uncle"
-          :class="{ active: currentCalendar === 'Uncle' }"
-          @click="changeCalendar('Uncle')"
-        >
-          Uncle
-        </button>
+        <button class="legend mom" :class="{ active: currentCalendar === 'Mom' }" @click="changeCalendar('Mom')">Mom</button>
+        <button class="legend dad" :class="{ active: currentCalendar === 'Dad' }" @click="changeCalendar('Dad')">Dad</button>
+        <button class="legend uncle" :class="{ active: currentCalendar === 'Uncle' }" @click="changeCalendar('Uncle')">Uncle</button>
       </div>
 
       <div class="calendar">
-        <h2 class="month-label">June 2025</h2>
-        <table>
-          <thead>
-            <tr>
-              <th v-for="day in days" :key="day">{{ day }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(week, index) in weeks" :key="index">
-              <td v-for="day in week" :key="day.label">
-                <span :class="'day ' + day.status + '-status'">{{ day.label }}</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="calendar-grid">
+          <h2 class="month-label">{{ monthYearLabel }}</h2>
+          <table>
+            <thead>
+              <tr>
+                <th v-for="day in days" :key="day">{{ day }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(week, index) in weeks" :key="index">
+                <td v-for="day in week" :key="day.label">
+                  <span :class="'day ' + day.status + '-status'">{{ day.label }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -112,11 +96,7 @@
 
         <div class="section">
           <h3>🌞 Daytime Meds</h3>
-          <div
-            v-for="(med, index) in daytimeMeds"
-            :key="index"
-            class="med-card mom"
-          >
+          <div v-for="(med, index) in daytimeMeds" :key="index" class="med-card mom">
             <span>🚫</span>
             <span>{{ med.name }}</span>
             <span>{{ med.dosage }}</span>
@@ -126,11 +106,7 @@
 
         <div class="section">
           <h3>🌙 Nighttime Meds</h3>
-          <div
-            v-for="(med, index) in nighttimeMeds"
-            :key="index"
-            class="med-card uncle"
-          >
+          <div v-for="(med, index) in nighttimeMeds" :key="index" class="med-card uncle">
             <span>🚫</span>
             <span>{{ med.name }}</span>
             <span>{{ med.dosage }}</span>
@@ -149,6 +125,7 @@ import { ref } from 'vue'
 
 const userName = 'User'
 const currentDate = new Date().toDateString()
+const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 const currentCalendar = ref('Mom')
 
@@ -197,7 +174,10 @@ function changeCalendar(member) {
   currentCalendar.value = member
   weeks.value = allCalendars[member]
 }
-
+const monthYearLabel = new Date().toLocaleString('default', {
+  month: 'long',
+  year: 'numeric'
+})
 const showModal = ref(false)
 const currentMember = ref('')
 const daytimeMeds = ref([])
@@ -212,23 +192,15 @@ function fakeApi(member) {
             { name: 'Med A', dosage: '1 pill', time: '9:00 AM' },
             { name: 'Med B', dosage: '5 ml', time: '12:00 PM' }
           ],
-          nighttime: [
-            { name: 'Med C', dosage: '1 tab', time: '9:00 PM' }
-          ]
+          nighttime: [{ name: 'Med C', dosage: '1 tab', time: '9:00 PM' }]
         },
         Dad: {
-          daytime: [
-            { name: 'Med X', dosage: '1 tab', time: '8:00 AM' }
-          ],
-          nighttime: [
-            { name: 'Med Y', dosage: '1 pill', time: '10:00 PM' }
-          ]
+          daytime: [{ name: 'Med X', dosage: '1 tab', time: '8:00 AM' }],
+          nighttime: [{ name: 'Med Y', dosage: '1 pill', time: '10:00 PM' }]
         },
         Uncle: {
           daytime: [],
-          nighttime: [
-            { name: 'Med Z', dosage: '1 cap', time: '11:00 PM' }
-          ]
+          nighttime: [{ name: 'Med Z', dosage: '1 cap', time: '11:00 PM' }]
         }
       }
       resolve(dummyData[member])
@@ -295,9 +267,15 @@ function closeModal() {
   margin-bottom: 1rem;
   padding: 1rem;
 }
-.mom { background-color: #fff9b0; }
-.dad { background-color: #ffc4c4; }
-.uncle { background-color: #d9a8f9; }
+.mom {
+  background-color: #fff9b0;
+}
+.dad {
+  background-color: #ffc4c4;
+}
+.uncle {
+  background-color: #d9a8f9;
+}
 
 .med-card .label {
   display: flex;
@@ -342,26 +320,39 @@ function closeModal() {
   border: 2px solid black;
   opacity: 1;
 }
-.mom.legend { background-color: #adb8ff; }
-.dad.legend { background-color: #ffb4b4; }
-.uncle.legend { background-color: #e3b5f7; }
+.mom.legend {
+  background-color: #adb8ff;
+}
+.dad.legend {
+  background-color: #ffb4b4;
+}
+.uncle.legend {
+  background-color: #e3b5f7;
+}
 
 .calendar {
   text-align: center;
+}
+.calendar-grid {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 1.5rem;
 }
 .month-label {
   color: purple;
   font-size: 1.5rem;
   writing-mode: vertical-lr;
   transform: rotate(180deg);
-  margin-right: 2rem;
+  margin: 0;
 }
 table {
   border-collapse: collapse;
   width: 100%;
   max-width: 400px;
 }
-th, td {
+th,
+td {
   padding: 0.5rem;
   text-align: center;
 }
@@ -372,15 +363,25 @@ th, td {
   border-radius: 50%;
   line-height: 24px;
 }
-.green-status { background-color: green; color: white; }
-.red-status { background-color: red; color: white; }
-.default-status { background-color: lightgray; }
+.green-status {
+  background-color: green;
+  color: white;
+}
+.red-status {
+  background-color: red;
+  color: white;
+}
+.default-status {
+  background-color: lightgray;
+}
 
 /* MODAL STYLES */
 .modal-overlay {
   position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background-color: rgba(0, 0, 0, 0.4);
   display: flex;
   justify-content: center;
