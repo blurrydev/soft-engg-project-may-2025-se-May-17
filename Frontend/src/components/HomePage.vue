@@ -1,427 +1,308 @@
 <template>
-  <div class="home-wrapper">
-    <!-- HEADER -->
-    <div class="header">
-      <div class="date-info">
-        <p>Today</p>
-        <p>{{ currentDate }}</p>
-        <h2>Greetings, {{ userName }}</h2>
-        <h3>Today's medications</h3>
+  <div class="dashboard-wrapper">
+    <header class="header">
+      <div class="date-section">
+        <p class="date">{{ formattedDate }}</p>
+        <h5 class="greeting">Greetings, {{ caregiverName }}</h5>
       </div>
-      <div class="icons">
+      <div class="header-icons">
         <span>🔔</span>
-        <router-link to="/caregiver-stats"><span>📈</span></router-link>
+        <router-link to="/caregiver-stats">
+          <span>📈</span>
+        </router-link>
         <span>👤</span>
       </div>
-    </div>
+    </header>
 
-    <!-- MED CARDS -->
-    <div class="medications">
-      <div class="med-card mom">
-        <div class="label">
-          Mom’s Next Medication
-          <a href="#" @click.prevent="openModal('Mom')" class="view-all-link">View All</a>
-        </div>
-        <div class="med-details">
-          <span>🚫</span>
-          <span>Medicine Name</span>
-          <span>Dosage</span>
-          <span>⏰ Time</span>
-          <button>POKE</button>
-        </div>
-      </div>
+    <main class="main-content">
+      <div class="medications-column">
+        <h2 class="subheading">Next Medications in this Time Slot</h2>
 
-      <div class="med-card dad">
-        <div class="label">
-          Dad’s Next Medication
-          <a href="#" @click.prevent="openModal('Dad')" class="view-all-link">View All</a>
+        <div v-if="loading" class="loading-state">
+          <p>Loading dependents' schedules...</p>
         </div>
-        <div class="med-details">
-          <span>🚫</span>
-          <span>Medicine Name</span>
-          <span>Dosage</span>
-          <span>⏰ Time</span>
-          <button>POKE</button>
+        
+        <div v-else-if="processedDependents.length === 0" class="loading-state">
+          <p>No upcoming medications for any dependents in this time period.</p>
         </div>
-      </div>
 
-      <div class="med-card uncle">
-        <div class="label">
-          Uncle’s Next Medication
-          <a href="#" @click.prevent="openModal('Uncle')" class="view-all-link">View All</a>
-        </div>
-        <div class="med-details">
-          <span>🚫</span>
-          <span>Medicine Name</span>
-          <span>Dosage</span>
-          <span>⏰ Time</span>
-          <button>POKE</button>
-        </div>
-      </div>
-    </div>
+        <div v-else>
+          <!-- Loop through the processed data -->
+          <div v-for="(dependent, index) in processedDependents" :key="dependent.id" class="dependent-card">
+            <header class="dependent-header">
+              <h3>{{ dependent.relation }}'s Next Medication</h3>
+                <a href="#" class="view-all-link" @click.prevent="openMedicationModal(dependent)">View All</a>
+            </header>
 
-    <!-- CALENDAR -->
-    <div class="calendar-section">
-      <div class="calendar-header">
-        <button class="legend mom" :class="{ active: currentCalendar === 'Mom' }" @click="changeCalendar('Mom')">Mom</button>
-        <button class="legend dad" :class="{ active: currentCalendar === 'Dad' }" @click="changeCalendar('Dad')">Dad</button>
-        <button class="legend uncle" :class="{ active: currentCalendar === 'Uncle' }" @click="changeCalendar('Uncle')">Uncle</button>
-      </div>
-
-      <div class="calendar">
-        <div class="calendar-grid">
-          <h2 class="month-label">{{ monthYearLabel }}</h2>
-          <table>
-            <thead>
-              <tr>
-                <th v-for="day in days" :key="day">{{ day }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(week, index) in weeks" :key="index">
-                <td v-for="day in week" :key="day.label">
-                  <span :class="'day ' + day.status + '-status'">{{ day.label }}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODAL -->
-    <div v-if="showModal" class="modal-overlay">
-      <div class="modal-box">
-        <h2>{{ currentMember }}’s medications</h2>
-
-        <div class="section">
-          <h3>🌞 Daytime Meds</h3>
-          <div v-for="(med, index) in daytimeMeds" :key="index" class="med-card mom">
-            <span>🚫</span>
-            <span>{{ med.name }}</span>
-            <span>{{ med.dosage }}</span>
-            <span>⏰ {{ med.time }}</span>
+            <!-- The API can return multiple meds per user in a slot, we show the first one -->
+            <div v-if="dependent.medications.length > 0" :class="['med-info-card', cardColors[index % cardColors.length]]">
+              <span class="pill-icon">💊</span>
+              <span class="med-name">{{ dependent.medications[0].medicine_title }}</span>
+              <span class="med-dosage">{{ dependent.medications[0].dosage }}</span>
+              <span class="med-time">
+                <span class="icon">⏰</span>
+                <!-- Display the reminder slot from the new API response -->
+                {{ dependent.medications[0].reminder_slot }}
+              </span>
+              <button class="poke-button" @click="poke(dependent.relation)">POKE</button>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div class="section">
-          <h3>🌙 Nighttime Meds</h3>
-          <div v-for="(med, index) in nighttimeMeds" :key="index" class="med-card uncle">
-            <span>🚫</span>
-            <span>{{ med.name }}</span>
-            <span>{{ med.dosage }}</span>
-            <span>⏰ {{ med.time }}</span>
+      <div class="calendar-column">
+        <div class="calendar-placeholder">(Calendar will be implemented here)</div>
+      </div>
+    </main>
+
+        <!-- NEW: Medication Details Modal -->
+    <div v-if="isModalVisible" class="modal-overlay" @click.self="closeModal">
+      <div class="modal-content">
+        <h2 class="modal-title">{{ selectedDependent.relation }}'s medications</h2>
+        
+        <div v-if="isModalLoading" class="modal-loading">Loading medications...</div>
+        
+        <div v-else class="modal-meds-list">
+          <!-- Daytime Meds -->
+          <div class="modal-meds-category">
+            <div class="category-header"><span class="category-icon">☀️</span> Daytime Meds</div>
+            <p v-if="modalMeds.daytime.length === 0" class="no-meds-text">No daytime medications scheduled.</p>
+            <div v-else v-for="med in modalMeds.daytime" :key="med.id" class="modal-med-card day">
+                <span class="pill-icon">💊</span>
+                <span class="med-name">{{ med.medicineName }}</span>
+                <span class="med-dosage">{{ med.dosage }}</span>
+                <span class="med-time"><span class="icon">⏰</span>{{ med.time }}</span>
+            </div>
+          </div>
+          <!-- Nighttime Meds -->
+          <div class="modal-meds-category">
+            <div class="category-header"><span class="category-icon">🌙</span> Nighttime Meds</div>
+             <p v-if="modalMeds.nighttime.length === 0" class="no-meds-text">No nighttime medications scheduled.</p>
+            <div v-else v-for="med in modalMeds.nighttime" :key="med.id" class="modal-med-card night">
+                <span class="pill-icon">💊</span>
+                <span class="med-name">{{ med.medicineName }}</span>
+                <span class="med-dosage">{{ med.dosage }}</span>
+                <span class="med-time"><span class="icon">⏰</span>{{ med.time }}</span>
+            </div>
           </div>
         </div>
-
-        <button class="close-btn" @click="closeModal">Close</button>
+        
+        <button class="modal-close-button" @click="closeModal">Close</button>
       </div>
+    </div>
+
+    <div v-if="pokeMessage" class="poke-alert" @click="pokeMessage = ''">
+      {{ pokeMessage }}
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue';
+import { useRoute } from 'vue-router';
+// Import the new and helper mock API functions
+import { getUpcomingMedicationsForCaregiver, getDependentsDetails, getTodaysMedsForDependent } from '@/services/mockApi.js';
 
-const userName = 'User'
-const currentDate = new Date().toDateString()
-const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const route = useRoute();
 
-const currentCalendar = ref('Mom')
+// This will hold the raw flat list from the API
+const upcomingMedications = ref([]);
+// This will hold the dependent user objects (Mom, Dad, etc.)
+const dependentsInfo = ref([]);
 
-const allCalendars = {
-  Mom: [
-    [
-      { label: '1', status: 'green' },
-      { label: '2', status: 'green' },
-      { label: '3', status: 'red' },
-      { label: '4', status: 'default' },
-      { label: '5', status: 'green' },
-      { label: '6', status: 'green' },
-      { label: '7', status: 'red' }
-    ],
-    ...Array(4).fill(Array(7).fill({ label: '•', status: 'default' }))
-  ],
-  Dad: [
-    [
-      { label: '1', status: 'green' },
-      { label: '2', status: 'red' },
-      { label: '3', status: 'green' },
-      { label: '4', status: 'green' },
-      { label: '5', status: 'default' },
-      { label: '6', status: 'green' },
-      { label: '7', status: 'red' }
-    ],
-    ...Array(4).fill(Array(7).fill({ label: '•', status: 'default' }))
-  ],
-  Uncle: [
-    [
-      { label: '1', status: 'green' },
-      { label: '2', status: 'green' },
-      { label: '3', status: 'green' },
-      { label: '4', status: 'red' },
-      { label: '5', status: 'default' },
-      { label: '6', status: 'green' },
-      { label: '7', status: 'green' }
-    ],
-    ...Array(4).fill(Array(7).fill({ label: '•', status: 'default' }))
-  ]
-}
+const caregiverName = ref('User');
+const loading = ref(true);
+const pokeMessage = ref('');
 
-const weeks = ref(allCalendars[currentCalendar.value])
+const cardColors = ref(['color-yellow', 'color-purple', 'color-blue']);
 
-function changeCalendar(member) {
-  currentCalendar.value = member
-  weeks.value = allCalendars[member]
-}
-const monthYearLabel = new Date().toLocaleString('default', {
-  month: 'long',
-  year: 'numeric'
-})
-const showModal = ref(false)
-const currentMember = ref('')
-const daytimeMeds = ref([])
-const nighttimeMeds = ref([])
+const isModalVisible = ref(false);
+const isModalLoading = ref(false);
+const selectedDependent = ref(null);
+const modalMeds = ref({ daytime: [], nighttime: [] });
 
-function fakeApi(member) {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const dummyData = {
-        Mom: {
-          daytime: [
-            { name: 'Med A', dosage: '1 pill', time: '9:00 AM' },
-            { name: 'Med B', dosage: '5 ml', time: '12:00 PM' }
-          ],
-          nighttime: [{ name: 'Med C', dosage: '1 tab', time: '9:00 PM' }]
-        },
-        Dad: {
-          daytime: [{ name: 'Med X', dosage: '1 tab', time: '8:00 AM' }],
-          nighttime: [{ name: 'Med Y', dosage: '1 pill', time: '10:00 PM' }]
-        },
-        Uncle: {
-          daytime: [],
-          nighttime: [{ name: 'Med Z', dosage: '1 cap', time: '11:00 PM' }]
-        }
-      }
-      resolve(dummyData[member])
-    }, 0)
-  })
-}
+const formattedDate = computed(() => {
+  return new Date().toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+});
 
-async function openModal(member) {
-  currentMember.value = member
-  showModal.value = true
+// This computed property transforms the raw API data into a structure the template can use
+const processedDependents = computed(() => {
+  if (dependentsInfo.value.length === 0) return [];
+  
+  return dependentsInfo.value.map(dep => {
+    // Filter the flat list to get meds just for this dependent
+    const medsForThisDependent = upcomingMedications.value.filter(
+      med => med.user_id === dep.id
+    );
+    return {
+      ...dep, // a.k.a id, relation, firstName
+      medications: medsForThisDependent,
+    };
+  }).filter(dep => dep.medications.length > 0); // Only show dependents with meds in this slot
+});
 
+
+async function fetchData(caregiverId) {
+  loading.value = true;
   try {
-    const data = await fakeApi(member)
-    daytimeMeds.value = data.daytime
-    nighttimeMeds.value = data.nighttime
-  } catch (err) {
-    console.error('Error fetching meds', err)
-    daytimeMeds.value = []
-    nighttimeMeds.value = []
+    const response = await getUpcomingMedicationsForCaregiver(caregiverId);
+    upcomingMedications.value = response.upcoming_medications;
+
+    // Now get the details (like 'relation') for the dependents who have meds
+    const dependentIdsWithMeds = [...new Set(response.upcoming_medications.map(med => med.user_id))];
+    if (dependentIdsWithMeds.length > 0) {
+        dependentsInfo.value = await getDependentsDetails(dependentIdsWithMeds);
+    }
+
+  } catch (error) {
+    console.error("Failed to fetch dependent medication data:", error);
+  } finally {
+    loading.value = false;
+  }
+}
+
+function poke(relation) {
+  pokeMessage.value = `A reminder notification has been sent to ${relation}.`;
+  setTimeout(() => { pokeMessage.value = '' }, 4000);
+}
+
+
+
+async function openMedicationModal(dependent) {
+  if (!dependent) return;
+  selectedDependent.value = dependent;
+  isModalVisible.value = true;
+  isModalLoading.value = true;
+  try {
+    // Call the new API function
+    modalMeds.value = await getTodaysMedsForDependent(dependent.id);
+  } catch (error) {
+    console.error(`Failed to load all-day meds for ${dependent.id}`, error);
+    modalMeds.value = { daytime: [], nighttime: [] }; // Reset on error
+  } finally {
+    isModalLoading.value = false;
   }
 }
 
 function closeModal() {
-  showModal.value = false
+  isModalVisible.value = false;
+  selectedDependent.value = null; // Clean up state
 }
+// --- END MODAL FUNCTIONS ---
+onMounted(() => {
+  const caregiverId = route.params.userId;
+  if (caregiverId) {
+    if (caregiverId === 'user_101') {
+        caregiverName.value = 'John';
+    }
+    fetchData(caregiverId);
+  } else {
+    console.error("No caregiver ID found in URL.");
+    loading.value = false;
+  }
+});
 </script>
 
 <style scoped>
-.view-all-link {
-  cursor: pointer;
-  text-decoration: underline;
-  font-weight: 500;
-  color: #0b5394;
-}
-.view-all-link:hover {
-  text-decoration: underline;
-  color: #08306b;
-}
-
-.home-wrapper {
-  background-color: #d6eed6;
-  border-radius: 20px;
-  padding: 2rem;
-  font-family: sans-serif;
+/* Styles are identical to the previous response, no changes needed */
+.dashboard-wrapper {
+  background-color: #eaf5e9;
+  font-family: "Times New Roman", serif;
+  padding: 2rem 3rem;
+  border-radius: 25px;
+  border: 1px solid #cce2c9;
+  max-width: 1400px;
+  margin: auto;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
 }
 .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: start;
+  display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;
 }
-.date-info h2 {
-  margin-top: 1rem;
-}
-.icons span {
-  font-size: 1.5rem;
-  margin: 0 0.5rem;
-  cursor: pointer;
-}
-.medications {
-  margin: 2rem 0;
-}
-.med-card {
-  border-radius: 15px;
-  margin-bottom: 1rem;
-  padding: 1rem;
-}
-.mom {
-  background-color: #fff9b0;
-}
-.dad {
-  background-color: #ffc4c4;
-}
-.uncle {
-  background-color: #d9a8f9;
-}
-
-.med-card .label {
-  display: flex;
-  justify-content: space-between;
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-}
-.med-details {
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-}
-.med-details button {
-  background-color: #d62828;
-  color: white;
-  border: none;
-  padding: 0.3rem 0.8rem;
-  border-radius: 8px;
-}
-.calendar-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.calendar-header {
-  margin-bottom: 1rem;
-}
-.legend {
-  margin-right: 0.5rem;
-  padding: 0.3rem 1rem;
-  border-radius: 12px;
-  border: none;
-  cursor: pointer;
-  transition: 0.2s ease;
-  opacity: 0.8;
-}
-.legend:hover {
-  transform: scale(1.05);
-  opacity: 1;
-}
-.legend.active {
-  border: 2px solid black;
-  opacity: 1;
-}
-.mom.legend {
-  background-color: #adb8ff;
-}
-.dad.legend {
-  background-color: #ffb4b4;
-}
-.uncle.legend {
-  background-color: #e3b5f7;
-}
-
-.calendar {
-  text-align: center;
-}
-.calendar-grid {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 1.5rem;
-}
-.month-label {
-  color: purple;
-  font-size: 1.5rem;
-  writing-mode: vertical-lr;
-  transform: rotate(180deg);
-  margin: 0;
-}
-table {
-  border-collapse: collapse;
-  width: 100%;
-  max-width: 400px;
-}
-th,
-td {
-  padding: 0.5rem;
-  text-align: center;
-}
-.day {
-  display: inline-block;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  line-height: 24px;
-}
-.green-status {
-  background-color: green;
-  color: white;
-}
-.red-status {
-  background-color: red;
-  color: white;
-}
-.default-status {
-  background-color: lightgray;
-}
-
-/* MODAL STYLES */
+.date-section .date { font-size: 1.1rem; color: #555; margin: 0; }
+.greeting { font-size: 2.5rem; color: #333; margin-top: 0.5rem; font-weight: normal; }
+.header-icons { display: flex; gap: 1.5rem; font-size: 1.8rem; color: #444; cursor: pointer; }
+.main-content { display: flex; gap: 3rem; }
+.medications-column { flex: 3; }
+.calendar-column { flex: 2; min-width: 350px; }
+.subheading { font-size: 1.4rem; font-weight: bold; color: #333; margin-bottom: 1.5rem; }
+.dependent-card { margin-bottom: 2rem; }
+.dependent-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; }
+.dependent-header h3 { font-size: 1.2rem; margin: 0; color: #333; }
+.view-all-link { font-size: 1rem; color: #007bff; text-decoration: none; font-weight: bold; }
+.view-all-link:hover { text-decoration: underline; }
+.med-info-card { display: flex; align-items: center; gap: 1.5rem; padding: 1rem 1.5rem; border-radius: 50px; font-size: 1.1rem; border: 2px solid; }
+.med-info-card.empty { font-style: italic; justify-content: center; }
+.pill-icon, .icon { font-size: 1.4rem; }
+.med-name { flex-grow: 1; font-weight: bold; }
+.med-dosage, .med-time { display: flex; align-items: center; gap: 0.5rem; }
+.color-yellow { background-color: #fffde7; border-color: #fbc02d; }
+.color-purple { background-color: #f3e5f5; border-color: #ab47bc; }
+.color-blue { background-color: #e3f2fd; border-color: #42a5f5; }
+.poke-button { background-color: #d9534f; color: white; border: none; border-radius: 20px; padding: 0.6rem 1.5rem; font-weight: bold; font-family: "Times New Roman", serif; font-size: 1rem; cursor: pointer; transition: background-color 0.2s; }
+.poke-button:hover { background-color: #c9302c; }
+.calendar-placeholder { border: 1px solid #ccc; background: #fff; padding: 1rem; border-radius: 10px; font-style: italic; color: #666; text-align: center; }
+.poke-alert { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #2c3e50; color: white; padding: 1rem 2rem; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); z-index: 1000; }
+.loading-state { text-align: center; padding: 3rem; font-style: italic; color: #666; }
+/* --- NEW MODAL STYLES --- */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.4);
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 10;
+  z-index: 1000;
 }
-.modal-box {
-  background-color: #b3d8ff;
-  padding: 2rem;
+.modal-content {
+  background-color: #d9eafc; /* Light blue from mockup */
+  padding: 2rem 2.5rem;
   border-radius: 20px;
-  width: 400px;
-  max-width: 90%;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-.modal-box h2 {
-  text-align: center;
-  margin-bottom: 1rem;
-}
-.section h3 {
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
-}
-.modal-box .med-card {
-  border-radius: 12px;
-  padding: 0.6rem;
-  margin-bottom: 0.5rem;
+  border: 1px solid #a0b8d0;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+  width: 90%;
+  max-width: 600px;
   display: flex;
-  justify-content: space-around;
-  align-items: center;
+  flex-direction: column;
 }
-.close-btn {
-  margin-top: 1rem;
-  background-color: #2962ff;
+.modal-title {
+  text-align: center;
+  font-size: 1.8rem;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
+}
+.modal-loading {
+  text-align: center;
+  font-style: italic;
+  padding: 3rem;
+  font-size: 1.2rem;
+}
+.modal-meds-list { display: flex; flex-direction: column; gap: 1.5rem; }
+.modal-meds-category .category-header { font-size: 1.2rem; font-weight: bold; color: #333; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+.no-meds-text { font-style: italic; color: #555; padding-left: 1rem; }
+
+.modal-med-card {
+    display: flex; align-items: center; gap: 1.5rem; padding: 0.8rem 1.5rem; border-radius: 50px; font-size: 1rem; font-weight: 500; margin-bottom: 0.75rem; border: 2px solid;
+}
+.modal-med-card.day { background-color: #fffde7; border-color: #fbc02d; }
+.modal-med-card.night { background-color: #f3e5f5; border-color: #ab47bc; }
+
+.modal-close-button {
+  background-color: #0d6efd;
   color: white;
-  padding: 0.4rem 1.2rem;
   border: none;
+  padding: 0.8rem 2rem;
   border-radius: 10px;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
+  font-size: 1.1rem;
   cursor: pointer;
+  margin-top: 2rem;
+  align-self: center;
+  transition: background-color 0.2s;
 }
+.modal-close-button:hover { background-color: #0b5ed7; }
 </style>

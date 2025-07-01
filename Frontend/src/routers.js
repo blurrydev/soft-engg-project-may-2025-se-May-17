@@ -42,13 +42,9 @@ const routes = [
     {
         name: 'HomePage',
         component: HomePage,
-        path: '/',
-        meta: { 
-            requiresAuth: false,
-            requiresHasDep: false,
-            // NO `allowedRoles` key means ANY logged-in user can access it.
-        }
-    },
+        path: '/cg/:userId', // The dynamic path
+
+    }, 
     {
         name: 'SeniorCitizenDashboard',
         component: SeniorCitizenDashboard,

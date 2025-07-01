@@ -7,43 +7,26 @@
 // --- SIMULATED DATABASE TABLES ---
 
 const db = {
-  // Corresponds to the User model, representing the CURRENT user's dependents.
-  // This is the "CaregiverSeniorMap" for the logged-in user.
+  // All users, including dependents and caregivers
   users: [
-    { id: 'dep_001', firstName: 'Eleanor', lastName: 'Vance', birthDate: '1958-05-15', relation: 'Mom', gender: 'female' },
-    { id: 'dep_002', firstName: 'Hugh', lastName: 'Crain', birthDate: '1955-11-20', relation: 'Dad', gender: 'male' },
-    { id: 'dep_003', firstName: 'Theo', lastName: 'Vance', birthDate: '1962-09-01', relation: 'Uncle', gender: 'male' },
+    { id: 'dep_001', firstName: 'Eleanor', lastName: 'Vance', birthDate: '1958-05-15', relation: 'Mom' },
+    { id: 'dep_002', firstName: 'Hugh', lastName: 'Crain', birthDate: '1955-11-20', relation: 'Dad' },
+    { id: 'user_101', firstName: 'John', lastName: 'Doe' }, // Our Caregiver
   ],
-  
-  // A master list of ALL users in the system, for searching purposes.
-  allSystemUsers: [
-    { id: 'user_101', firstName: 'John', lastName: 'Doe', username: 'johndoe' },
-    { id: 'user_102', firstName: 'Jane', lastName: 'Smith', username: 'janesmith' },
-    { id: 'user_103', firstName: 'Peter', lastName: 'Jones', username: 'peterj' },
-    { id: 'user_104', firstName: 'Mary', lastName: 'Williams', username: 'maryw' },
-    // Include existing dependents here so they aren't searchable again initially
-    { id: 'dep_001', firstName: 'Eleanor', lastName: 'Vance', username: 'eleanorv' },
-    { id: 'dep_002', firstName: 'Hugh', lastName: 'Crain', username: 'hughc' },
-    { id: 'dep_003', firstName: 'Theo', lastName: 'Vance', username: 'theov' },
+  caregiverDependentMap: [
+    { caregiverId: 'user_101', dependentId: 'dep_001' },
+    { caregiverId: 'user_101', dependentId: 'dep_002' },
   ],
-  
-  // Corresponds to the Medicine model (master list of all possible medicines)
   medicines: [
-    { id: 1, title: 'Lisinopril', description: 'For high blood pressure.' },
-    { id: 2, title: 'Metformin', description: 'For type 2 diabetes.' },
-    { id: 3, title: 'Atorvastatin', description: 'To lower cholesterol.' },
-    { id: 4, title: 'Amlodipine', description: 'For high blood pressure and angina.' },
-    { id: 5, title: 'Albuterol', description: 'For asthma and COPD.' },
+    { id: 1, title: 'Lisinopril' }, { id: 2, title: 'Metformin' }, { id: 3, title: 'Atorvastatin' },
+    { id: 4, title: 'Amlodipine' }, { id: 5, title: 'Albuterol' },
   ],
-  
-  // Corresponds to the UserMedMap model
   userMedMaps: [
-    // Meds for "Mom" (dep_001)
-    { id: 101, userId: 'dep_001', medicineId: 1, dosage: '10mg', breakfast_after: true },
-    { id: 102, userId: 'dep_001', medicineId: 3, dosage: '20mg', dinner_after: true },
-    // Meds for "Dad" (dep_002)
-    { id: 103, userId: 'dep_002', medicineId: 2, dosage: '500mg', breakfast_after: true, dinner_after: true },
-    { id: 104, userId: 'dep_002', medicineId: 4, dosage: '5mg', lunch_before: true },
+    { id: 101, userId: 'dep_001', medicineId: 1, dosage: '10mg', breakfast_after: true, start_date: '2024-01-01', end_date: '2025-12-31' },
+    { id: 102, userId: 'dep_001', medicineId: 3, dosage: '20mg', dinner_after: true, start_date: '2024-01-01', end_date: '2025-12-31' },
+    { id: 103, userId: 'dep_001', medicineId: 5, dosage: '5 mg', lunch_before: true, start_date: '2024-01-01', end_date: '2025-12-31' },
+    { id: 104, userId: 'dep_002', medicineId: 2, dosage: '500mg', breakfast_after: true, dinner_after: true, start_date: '2024-01-01', end_date: '2025-12-31' },
+    { id: 105, userId: 'dep_002', medicineId: 4, dosage: '5mg', lunch_before: true, start_date: '2024-01-01', end_date: '2025-12-31' },
   ],
 };
 
@@ -212,4 +195,138 @@ export async function addMedicineToMemory(title, description = '') {
   };
   db.medicines.push(newMed);
   return newMed;
+}
+
+export async function getUpcomingMedicationsForCaregiver(caregiverId) {
+  await simulateDelay();
+  console.clear(); // Clear console for fresh debugging
+  console.log(`[Mock API] ==> GET /upcoming-medications for caregiver: ${caregiverId}`);
+
+  let current_hour = new Date().getHours();
+  const today_iso = new Date().toISOString().split('T')[0];
+
+  // --- TIME TRAVEL FOR TESTING ---
+  // To guarantee you see the dinner medication, we force the time.
+  current_hour = 19;
+  // --- END TESTING BLOCK ---
+
+  console.log(`[Mock API] Simulating current hour as: ${current_hour}`);
+
+  let valid_slots = [];
+  if (current_hour >= 4 && current_hour < 10) valid_slots = ['breakfast_before', 'breakfast_after'];
+  else if (current_hour >= 10 && current_hour < 15) valid_slots = ['lunch_before', 'lunch_after'];
+  else if (current_hour >= 16 && current_hour < 24) valid_slots = ['dinner_before', 'dinner_after'];
+
+  if (valid_slots.length === 0) {
+    console.log('[Mock API] No valid time slot for the current hour. Returning empty.');
+    return { upcoming_medications: [] };
+  }
+  
+  console.log(`[Mock API] Active time slots: [${valid_slots.join(', ')}]`);
+
+  const senior_ids = db.caregiverDependentMap
+    .filter(map => map.caregiverId === caregiverId)
+    .map(map => map.dependentId);
+
+  const final_results = [];
+
+  // Loop through each dependent managed by the caregiver
+  for (const seniorId of senior_ids) {
+    // Get all valid meds for this specific dependent
+    const all_meds_for_senior = db.userMedMaps.filter(med =>
+      med.userId === seniorId &&
+      med.start_date <= today_iso &&
+      med.end_date >= today_iso
+    );
+
+    // <-- BUG FIX: The filtering logic is now moved directly inside the loop,
+    // which is simpler and correctly matches the Python API's behavior.
+    for (const med_map of all_meds_for_senior) {
+      for (const slot of valid_slots) {
+        if (med_map[slot]) { // Check if the property (e.g., 'dinner_after') is true
+          const medicineInfo = db.medicines.find(m => m.id === med_map.medicineId);
+          final_results.push({
+            user_id: seniorId,
+            medicine_id: med_map.medicineId,
+            medicine_title: medicineInfo.title,
+            dosage: med_map.dosage,
+            start_date: med_map.start_date,
+            end_date: med_map.end_date,
+            // Format the slot name exactly like the Python API
+            reminder_slot: slot.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          });
+        }
+      }
+    }
+  }
+
+  console.log('[Mock API] <== SUCCESS: Found medications:', final_results);
+  return { upcoming_medications: final_results };
+}
+
+
+// Helper to get dependent details for the frontend component
+export async function getDependentsDetails(dependentIds) {
+    await simulateDelay(100);
+    return db.users.filter(u => dependentIds.includes(u.id));
+}
+
+export async function getTodaysMedsForDependent(dependentId) {
+    await simulateDelay(400);
+    console.log(`[Mock API] GET all day medications for dependent: ${dependentId}`);
+
+    // Define time slots with their associated hour for categorization
+    const timeSlots = {
+        breakfast_before: { hour: 8, label: '08:00 AM' },
+        breakfast_after:  { hour: 9, label: '09:00 AM' },
+        lunch_before:     { hour: 12, label: '12:00 PM' },
+        lunch_after:      { hour: 13, label: '01:00 PM' },
+        dinner_before:    { hour: 18, label: '06:00 PM' },
+        dinner_after:     { hour: 19, label: '07:00 PM' },
+    };
+
+    const categorizedMeds = {
+        daytime: [],
+        nighttime: [],
+    };
+    
+    const today_iso = new Date().toISOString().split('T')[0];
+    
+    // Get all med maps for this specific user
+    const userMedMaps = db.userMedMaps.filter(med =>
+        med.userId === dependentId &&
+        med.start_date <= today_iso &&
+        med.end_date >= today_iso
+    );
+
+    for (const medMap of userMedMaps) {
+        for (const slotKey in timeSlots) {
+            if (medMap[slotKey]) { // Check if e.g., medMap.breakfast_after is true
+                const slotInfo = timeSlots[slotKey];
+                const medicineInfo = db.medicines.find(m => m.id === medMap.medicineId);
+
+                const medObject = {
+                    id: `${medMap.id}-${slotKey}`, // Create a unique key for v-for
+                    medicineName: medicineInfo.title,
+                    dosage: medMap.dosage,
+                    time: slotInfo.label,
+                };
+
+                // Categorize based on the hour (4 AM to 3:59 PM is daytime)
+                if (slotInfo.hour >= 4 && slotInfo.hour < 16) {
+                    categorizedMeds.daytime.push(medObject);
+                } else {
+                    categorizedMeds.nighttime.push(medObject);
+                }
+            }
+        }
+    }
+    
+    // Sort medications by time within each category
+    const sortByTime = (a, b) => a.time.localeCompare(b.time);
+    categorizedMeds.daytime.sort(sortByTime);
+    categorizedMeds.nighttime.sort(sortByTime);
+
+    console.log('[Mock API] Returning categorized meds:', categorizedMeds);
+    return categorizedMeds;
 }
