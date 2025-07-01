@@ -1,11 +1,11 @@
 <template>
   <div class="container mt-5">
-    <!-- Success Alert -->
+ 
     <div v-if="successMessage" class="alert alert-success mt-3" role="alert">
       {{ successMessage }}
       <button type="button" class="btn-close" @click="successMessage = ''" aria-label="Close">X</button>
     </div>
-    <!-- Error Alert -->
+ 
     <div v-if="errorMessage" class="alert alert-danger mt-3" role="alert">
       {{ errorMessage }}
       <button type="button" class="btn-close" @click="successMessage = ''" aria-label="Close">X</button>
@@ -21,12 +21,13 @@
       </div>
       <div class="icons">
         <span>
-    <!-- SOS Button -->
-    <button class="btn btn-danger" @click="sendSOS" :disabled="loading">
+          <button class="btn btn-danger" @click="sendSOS" :disabled="loading">
       {{ loading ? 'Sending...' : 'Send SOS' }}
     </button></span>
         <span>🔔</span>
-        <span>📈</span>
+        <router-link to="/senior-stats">
+          <span>📈</span>
+        </router-link>
         <span>👤</span>
         <button class="logout-button" @click="logout">Logout</button>
       </div>
@@ -42,8 +43,6 @@
           <span class="med-time">⏰ {{ med.time }}</span>
         </div>
       </div>
-
-      
     </div>
   </div>
 </template>
@@ -74,17 +73,14 @@ async function fetchUpcomingMeds() {
   }
 }
 
-// Send SOS mock
 async function sendSOS() {
   loading.value = true;
   successMessage.value = '';
   errorMessage.value = '';
 
   try {
-    // Simulated delay for frontend-only demo
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Simulated success
     successMessage.value = 'SOS alert sent successfully!';
   } catch (error) {
     errorMessage.value = 'Failed to send SOS alert.';

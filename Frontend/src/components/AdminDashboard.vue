@@ -1,13 +1,13 @@
 <template>
   <div class="admin-dashboard container mt-4 p-4 rounded">
+
     <div v-if="alertMessage" class="alert alert-success alert-dismissible fade show mt-3" role="alert">
       {{ alertMessage }}
       <button type="button" class="btn-close" @click="alertMessage = ''" aria-label="Close"></button>
     </div>
 
-    <!-- Header Section -->
     <div class="dashboard-header d-flex justify-content-between align-items-start mb-4">
-       <div class="greeting">
+      <div class="greeting">
         <p class="mb-0">Today</p>
         <p class="fw-bold">{{ currentDate }}</p>
         <h3>Greetings Admin,</h3>
@@ -15,8 +15,7 @@
         <h3 class="mt-3 fw-semibold">Medicine Requests</h3>
       </div>
 
-       <div class="search-section">
-        <!-- Search Input -->
+      <div class="search-section">
         <input
           type="text"
           class="form-control form-control-sm search-input"
@@ -24,66 +23,55 @@
           v-model="searchQuery"
         />
 
-        <!-- Search Results -->
-<div v-if="searchResults.length > 0" class="search-results mt-3">
-  <p class="fw-semibold mb-2">Existing Medicines:</p>
-  <ul class="list-group mb-2">
-    <li
-      v-for="(med, index) in searchResults"
-      :key="index"
-      class="list-group-item py-2 px-3"
-    >
-      <strong>{{ med.title }}</strong>: {{ med.description }}
-    </li>
-  </ul>
-</div>
+        <div v-if="searchResults.length > 0" class="search-results mt-3">
+          <p class="fw-semibold mb-2">Existing Medicines:</p>
+          <ul class="list-group mb-2">
+            <li v-for="(med, index) in searchResults" :key="index" class="list-group-item py-2 px-3 search-result-item">
+                        <div style="background-color: lemonchiffon; width: 100%">
+              <strong>{{ med.title }}</strong>: {{ med.description }}</div>
+            </li>
+          </ul>
+          </div>
+        <div v-else-if="searchQuery && !isSearching" class="search-results mt-3">
+          <p class="text-muted fst-italic"><b>No medicines found in the database.</b></p>
+        </div>
 
-<!-- Show this if search is done and nothing was found -->
-<div v-else-if="searchQuery && !isSearching" class="search-results mt-3">
-  <p class="text-muted fst-italic"><b>No medicines found in the database.</b></p>
-</div>
+        <div v-else-if="isSearching" class="search-results mt-3">
+          <p class="text lg fst-italic">Searching...</p>
+        </div>
 
-<!-- Optional: show loading indicator -->
-<div v-else-if="isSearching" class="search-results mt-3">
-  <p class="text-info">Searching...</p>
-</div>
-
-
-        <!-- Add Button -->
         <button class="btn btn-lg btn-outline-primary w-100 add-button mt-3" @click="showModal = true">
           <i class="fa-solid fa-plus"></i> Add medicine
         </button>
       </div>
     </div>
 
-    <!-- Requests Table Header -->
     <div class="grid-header">
       <div>Image</div>
       <div>Name of Medicine</div>
+      <div>Description</div>
       <div>Dosage</div>
       <div>User</div>
       <div>Actions</div>
     </div>
 
-    <!-- Requests List -->
     <div
       v-for="(request, index) in requests"
       :key="index"
-      :class="['request-row mb-3 p-3 rounded shadow-sm', request.colorClass]"
-    >
+      :class="['request-row mb-3 p-3 rounded shadow-sm', request.colorClass]">
       <div class="grid-row">
         <div><i class="fa-solid fa-pills text-danger"></i></div>
         <div class="fw-bold">{{ request.medicine }}</div>
+        <div>{{ request.description }}</div>
         <div>{{ request.dosage }}</div>
         <div>{{ request.user }}</div>
-        <div>
+        <div class="action-buttons">
           <button class="btn-approve me-2" @click="approveRequest(index)">APPROVE</button>
           <button class="btn-reject" @click="rejectRequest(index)">REJECT</button>
         </div>
       </div>
     </div>
 
-    <!-- Modal for Adding Medicine -->
     <div class="modal-backdrop" v-if="showModal">
       <div class="modal-box">
         <h5 class="mb-3">Add New Medicine</h5>
@@ -97,7 +85,6 @@
             required
           />
         </div>
-
         <div class="mb-2">
           <textarea
             v-model.trim="newMedicine.description"
@@ -107,7 +94,6 @@
             required
           ></textarea>
         </div>
-
         <div class="mb-2">
           <input
             type="number"
@@ -118,7 +104,6 @@
             required
           />
         </div>
-
         <div class="text-end">
           <button class="btn btn-secondary me-2" @click="showModal = false">Cancel</button>
           <button class="btn btn-success" :disabled="!isFormValid" @click="submitMedicine">Add</button>
@@ -130,7 +115,10 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { searchMedicines } from '@/services/mockApi'
+import { 
+  searchMasterMedicineList, 
+  addMedicineToMemory
+} from '@/services/mockApi'
 
 const currentDate = new Date().toDateString()
 const alertMessage = ref('')
@@ -143,47 +131,55 @@ const newMedicine = ref({
   title: '',
   description: '',
   dosage: '',
-  time: ''
 })
 
 const requests = ref([
-  { user: 'Alice', medicine: 'Paracetamol', dosage: '10mg', colorClass: 'bg-light-yellow' },
-  { user: 'Bob', medicine: 'Ibuprofen', dosage: '20mg', colorClass: 'bg-light-yellow' },
-  { user: 'Charlie', medicine: 'Amoxicillin', dosage: '10mg', colorClass: 'bg-light-yellow' }
-])
+  { user: 'Alice', medicine: 'Paracetamol', description: 'Pain relief', dosage: '10mg', colorClass: 'bg-light-yellow' },
+  { user: 'Bob', medicine: 'Ibuprofen', description: 'Anti-inflammatory', dosage: '20mg', colorClass: 'bg-light-yellow' },
+  { user: 'Charlie', medicine: 'Amoxicillin', description: 'Antibiotic', dosage: '10mg', colorClass: 'bg-light-yellow' }
+]);
 
-const isFormValid = computed(() => {
-  return newMedicine.value.title.trim() !== '' &&
-    newMedicine.value.description.trim() !== '' &&
-    newMedicine.value.dosage > 0;
-})
+const isFormValid = computed(() =>
+  newMedicine.value.title.trim() &&
+  newMedicine.value.description.trim() &&
+  newMedicine.value.dosage > 0
+)
 
-function approveRequest(index) {
-  const approvedMed = requests.value[index].medicine
-  requests.value.splice(index, 1)
-  alertMessage.value = `${approvedMed} approved successfully!`
+async function approveRequest(index) {
+  const approved = requests.value[index];
+  requests.value.splice(index, 1);
+  alertMessage.value = `${approved.medicine} approved successfully!`;
+
+  await addMedicineToMemory(
+    approved.medicine,
+    `${approved.description}`
+  );
 }
-
 function rejectRequest(index) {
-  const rejectedMed = requests.value[index].medicine
+  const rejected = requests.value[index]
   requests.value.splice(index, 1)
-  alertMessage.value = `${rejectedMed} rejected and removed from requests.`
+  alertMessage.value = `${rejected.medicine} rejected and removed.`
 }
 
-function submitMedicine() {
-  if (!newMedicine.value.title) return
-  alertMessage.value = `Medicine "${newMedicine.value.title}" added successfully!`
-  newMedicine.value = { title: '', description: '', dosage: '', time: '' }
-  showModal.value = false
+async function submitMedicine() {
+  if (!newMedicine.value.title) return;
+
+  alertMessage.value = `Medicine "${newMedicine.value.title}" added successfully!`;
+
+  await addMedicineToMemory(newMedicine.value.title, newMedicine.value.description);
+
+  newMedicine.value = { title: '', description: '', dosage: '', time: '' };
+  showModal.value = false;
 }
 
 async function handleSearch() {
   isSearching.value = true
   try {
-    const results = await searchMedicines(searchQuery.value)
-    searchResults.value = results
+    const results = await searchMasterMedicineList(searchQuery.value)
+    searchResults.value = Array.isArray(results) ? results : []
   } catch (error) {
-    console.error('Error searching medicines:', error)
+    console.error('Search failed:', error)
+    searchResults.value = []
   } finally {
     isSearching.value = false
   }
@@ -198,15 +194,13 @@ watch(searchQuery, () => {
 .admin-dashboard {
   background-color: #d6eed6;
   border-radius: 20px;
-  font-family: 'Times New Roman', serif;
+  font-family: 'Serif', Georgia, Times, 'Times New Roman';
 }
-
-.greeting {
-  font-size: 20px;
-}
-
 .dashboard-header {
   gap: 2rem;
+}
+.greeting {
+  font-size: 20px;
 }
 
 .search-section {
@@ -217,47 +211,34 @@ watch(searchQuery, () => {
   font-size: 18px;
   border-radius: 8px;
 }
-
 .search-results {
-  background-color: #f9f9f9;
-  border-radius: 10px;
-  padding: 10px;
+  background-color: #d9a8f9;
   max-height: 300px;
   overflow-y: auto;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 0 10px white;
+  border-left: 5px solid #d8a7f4; 
+  border-right: 5px solid #d8a7f4; 
+  margin-bottom: 8px;
 }
-
-.result-card {
-  padding: 10px 15px;
-  background-color: #ffffff;
-  border: 1px solid #dedede;
-  border-radius: 8px;
-  margin-bottom: 10px;
-  transition: box-shadow 0.2s ease;
-}
-
-.result-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.grid-header {
-  display: grid;
-  grid-template-columns: 1fr 2fr 1fr 2fr 2fr;
-  font-weight: bold;
-  padding: 0.5rem 1rem;
-  background-color: #d9a8f9;
-  border-radius: 8px 8px 0 0;
-  border-bottom: 2px solid #ddd;
-  font-size: 20px;
-}
-
+.grid-header,
 .grid-row {
   display: grid;
-  grid-template-columns: 1fr 2fr 1fr 2fr 2fr;
+  grid-template-columns: 1fr 2fr 2fr 1fr 1fr 2fr;
   align-items: center;
   gap: 1rem;
   font-size: 20px;
-  background-color: #fffacd;
+}
+.action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.grid-header{
+    padding: 0.5rem 1rem;
+    background-color: #d9a8f9;
+    border-radius: 8px 8px 0 0;
+  border-bottom: 2px solid #ddd;
+  font-weight:bold
 }
 
 .bg-light-yellow {
@@ -286,7 +267,6 @@ watch(searchQuery, () => {
   transition: background-color 0.2s;
 }
 
-/* Modal */
 .modal-backdrop {
   position: fixed;
   top: 0;
@@ -307,5 +287,13 @@ watch(searchQuery, () => {
   width: 90%;
   max-width: 400px;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+}
+.search-result-item{
+  background-color: lemonchiffon !important;
+  padding: 10px;
+  border: none;
+  border-radius: 0;
+  margin-bottom: 8px;
+  width: 100%;
 }
 </style>

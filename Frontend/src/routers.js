@@ -9,7 +9,8 @@ import DependentProfile from './components/DependentProfile.vue';
 import AccessDenied from './components/AccessDenied.vue';
 import SeniorCitizenDashboard from './components/SeniorCitizenDashboard.vue';
 import AdminDashboard from './components/AdminDashboard.vue';
-
+import SeniorStats from './components/SeniorStats.vue';
+import CaregiverStats from './components/CaregiverStats.vue';
 const routes = [
     // --- Public Routes ---
     {
@@ -76,6 +77,16 @@ const routes = [
             requiresAuth: false, 
             allowedRoles: ['caregiver', 'senior_citizen', 'all'] 
         }
+    },
+    {
+    path: '/senior-stats',
+    name: 'SeniorStats',
+    component: SeniorStats
+    },
+    {
+    path: '/caregiver-stats',
+    name: 'CaregiverStats',
+    component: CaregiverStats
     },
 ];
 

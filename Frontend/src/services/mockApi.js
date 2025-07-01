@@ -204,13 +204,12 @@ export async function addMedicationToDependent(userId, medMapData) {
   };
 }
 
-export async function searchMedicines(query) {
-  await simulateDelay(300);
-  console.log(`[Mock API] GET /api/medicines?search=${query}`);
-  if (!query) return { success: false, message: 'Medication not found.' };
-
-  return db.medicines.filter(med =>
-    med.title.toLowerCase().includes(query.toLowerCase())
-  );
+export async function addMedicineToMemory(title, description = '') {
+  const newMed = {
+    id: Date.now(),
+    title,
+    description
+  };
+  db.medicines.push(newMed);
+  return newMed;
 }
-
