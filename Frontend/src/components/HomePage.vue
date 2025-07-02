@@ -11,6 +11,7 @@
           <span>📈</span>
         </router-link>
         <span>👤</span>
+        <button class="logout-button" @click="logout">Logout</button>
       </div>
     </header>
 
@@ -99,11 +100,12 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 // Import the new and helper mock API functions
 import { getUpcomingMedicationsForCaregiver, getDependentsDetails, getTodaysMedsForDependent } from '@/services/mockApi.js';
 
 const route = useRoute();
+const router = useRouter();
 
 // This will hold the raw flat list from the API
 const upcomingMedications = ref([]);
@@ -127,6 +129,10 @@ const formattedDate = computed(() => {
   });
 });
 
+function logout() {
+  sessionStorage.clear();
+  router.push('/login'); // Use the router instance for navigation
+}
 // This computed property transforms the raw API data into a structure the template can use
 const processedDependents = computed(() => {
   if (dependentsInfo.value.length === 0) return [];

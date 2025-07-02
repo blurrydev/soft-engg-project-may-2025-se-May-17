@@ -15,13 +15,18 @@
         <h3 class="mt-3 fw-semibold">Medicine Requests</h3>
       </div>
 
+
       <div class="search-section">
+              <button class="logout-button" @click="logout">Logout</button>
+              <br><br>
+
         <input
           type="text"
           class="form-control form-control-sm search-input"
           placeholder="Search medicines"
           v-model="searchQuery"
         />
+
 
         <div v-if="searchResults.length > 0" class="search-results mt-3">
           <p class="fw-semibold mb-2">Existing Medicines:</p>
@@ -115,10 +120,19 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useRouter } from 'vue-router';
+
 import { 
   searchMasterMedicineList, 
   addMedicineToMemory
 } from '@/services/mockApi'
+
+const router = useRouter();
+
+function logout() {
+  sessionStorage.clear();
+  router.push('/login');
+}
 
 const currentDate = new Date().toDateString()
 const alertMessage = ref('')
@@ -203,6 +217,18 @@ watch(searchQuery, () => {
   font-size: 20px;
 }
 
+.header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; /* Aligns Navbar to the right */
+  gap: 1rem; /* Creates space between navbar and search box */
+}
+
+/* This targets the Navbar component specifically inside this new container */
+.header-actions .navbar-container {
+  width: 100%;
+  justify-content: flex-end; /* Pushes icons to the right end of the navbar */
+}
 .search-section {
   width: 320px;
 }

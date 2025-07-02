@@ -10,8 +10,12 @@
           {{ sosLoading ? '...' : 'SOS' }}
         </button>
         <span>🔔</span>
-        <span>📈</span>
+        <router-link to="/senior-stats">
+          <span>📈</span>
+        </router-link>
         <span>👤</span>
+        <button class="logout-button" @click="logout">Logout</button>
+
       </div>
     </div>
     
@@ -80,18 +84,24 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { useRoute } from 'vue-router';
-// These imports will now work correctly
-import { getDepsDetails, getUpcomingMedication, getTodaysMeds } from '@/services/mockApi.js';
+import { useRoute, useRouter } from 'vue-router'; // Import useRouter
+
+// Correctly import the functions with their actual names from mockApi.js
+import { 
+  getDependentDetails, 
+  getUpcomingMedication, 
+  getTodaysMedsForDependent 
+} from '@/services/mockApi.js';
 
 const route = useRoute();
+const router = useRouter(); // Instantiate the router for navigation
 
 const userName = ref('User');
 const nextMedication = ref(null);
 const daytimeMeds = ref([]);
 const nighttimeMeds = ref([]);
 const loading = ref(true);
-const error = ref(null); // <-- NEW: For error handling
+const error = ref(null);
 
 const sosLoading = ref(false);
 const sosMessage = ref('');
@@ -102,18 +112,24 @@ const formattedDate = computed(() => {
   });
 });
 
+// This function is now defined at the top level, visible to the template
+function logout() {
+  sessionStorage.clear();
+  router.push('/login'); // Use the router instance for navigation
+}
+
 async function fetchAllDataForSenior(seniorId) {
   loading.value = true;
-  error.value = null; // Reset error on new fetch
+  error.value = null;
   try {
+    // Use the corrected function names in the Promise.all call
     const [details, nextMed, allMeds] = await Promise.all([
-      getDepsDetails(seniorId),
+      getDependentDetails(seniorId),
       getUpcomingMedication(seniorId),
-      getTodaysMeds(seniorId)
+      getTodaysMedsForDependent(seniorId)
     ]);
 
     if (!details) {
-      // Handle case where dependent ID is invalid
       throw new Error(`No dependent found with ID: ${seniorId}`);
     }
 
@@ -124,13 +140,21 @@ async function fetchAllDataForSenior(seniorId) {
 
   } catch (err) {
     console.error(`Failed to fetch dashboard data for senior ${seniorId}:`, err);
-    error.value = 'Could not load dashboard data. Please try again later.'; // <-- Set user-facing error
+    error.value = 'Could not load dashboard data. Please try again later.';
   } finally {
     loading.value = false;
   }
 }
 
-async function sendSOS() { /* ... unchanged ... */ }
+// sendSOS function needs to be defined at the top level too
+async function sendSOS() {
+  sosLoading.value = true;
+  sosMessage.value = '';
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  sosMessage.value = 'SOS Alert has been sent to your caregivers.';
+  sosLoading.value = false;
+  setTimeout(() => { sosMessage.value = '' }, 4000);
+}
 
 onMounted(() => {
   const dep_id = route.params.dep_id;

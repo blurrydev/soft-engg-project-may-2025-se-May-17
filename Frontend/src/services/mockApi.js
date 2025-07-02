@@ -9,9 +9,10 @@
 const db = {
   // All users, including dependents and caregivers
   users: [
-    { id: 'dep_001', firstName: 'Eleanor', lastName: 'Vance', birthDate: '1958-05-15', relation: 'Mom' },
-    { id: 'dep_002', firstName: 'Hugh', lastName: 'Crain', birthDate: '1955-11-20', relation: 'Dad' },
-    { id: 'user_101', firstName: 'John', lastName: 'Doe' }, // Our Caregiver
+    { id: 'dep_001', firstName: 'Eleanor', lastName: 'Vance', username: 'Eleanor1505', password: 'Eleanor1505', birthDate: '1958-05-15', relation: 'Mom', role: 'senior_citizen' },
+    { id: 'dep_002', firstName: 'Hugh', lastName: 'Crain', username: 'Hugh2011', password: 'Hugh2011', birthDate: '1955-11-20', relation: 'Dad', role: 'senior_citizen' },
+    { id: 'user_101', firstName: 'John', lastName: 'Doe', username: 'John1010', password: 'John1010', role: 'care_giver' },
+    { id: 'admin', firstName: 'Admin', lastName: 'Admin', username: 'admin', password: 'admin', role: 'admin' },
   ],
   caregiverDependentMap: [
     { caregiverId: 'user_101', dependentId: 'dep_001' },
@@ -29,6 +30,44 @@ const db = {
     { id: 105, userId: 'dep_002', medicineId: 4, dosage: '5mg', lunch_before: true, start_date: '2024-01-01', end_date: '2025-12-31' },
   ],
 };
+
+export async function login(username, password) {
+  await simulateDelay(500);
+  console.log(`[Mock API] Attempting login for user: ${username}`);
+
+  const user = db.users.find(
+    u => u.username === username && u.password === password
+  );
+
+  if (!user) {
+    console.log('[Mock API] Login failed: Invalid credentials');
+    // Mimics a 401 Unauthorized error
+    return { success: false, message: 'Invalid credentials' };
+  }
+
+  // Create a fake JWT payload. The 'jwt-decode' library only needs the payload part.
+  const payload = {
+    role: user.role, // The crucial piece for redirection
+    sub: user.id, // Standard claim for user ID
+    name: user.firstName,
+    iat: Math.floor(Date.now() / 1000) // Issued at time
+  };
+
+  // Base64 encode the payload to mimic a real JWT structure
+  const base64Payload = btoa(JSON.stringify(payload));
+  const mockJwt = `fakeHeader.${base64Payload}.fakeSignature`;
+
+  console.log(`[Mock API] Login successful for ${user.username} with role ${user.role}`);
+  
+  // Return the exact structure the Login.vue component expects
+  return {
+    success: true,
+    data: {
+      access_token: mockJwt,
+      user_id: user.id
+    }
+  };
+}
 
 // --- HELPER FUNCTIONS ---
 const simulateDelay = (ms = 500) => new Promise(res => setTimeout(res, ms));

@@ -1,55 +1,52 @@
 <template>
-  <NavBar />
-  <div class="container">
-    <div v-if="message" :class="{'alert-success': success, 'alert-danger': !success}" class="alert mt-3">
-      {{ message }}
-    </div>
-    <div class="row">
-      <div class="col-md-6">
-        <br><br><br><br><br><br><br><br><br><br>
-        <h1 class="white-text">e-Pustak: Your Digital Library</h1>
-        <br>
-        <h5 class="white-text" style="text-align: center; font-family: Lucida Handwriting, Cursive;">
-          Escape, Explore, and Learn - Anytime, Anywhere
-        </h5>
-      </div>
-      <div class="col-md-6">
-        <br><br><br><br><br><br><br>
-        <form @submit.prevent="handleSubmit">
-          <div class="form-container">
-            <h3 align="center">Login</h3>
-            <div class="form-group text-left">
-              <label for="user_id">User ID</label>
-              <input type="text" v-model="user_id" class="form-control" id="user_id" placeholder="Enter UserID" />
-            </div>
-            <div class="form-group text-left">
-              <label for="password">Password</label>
-              <input type="password" v-model="password" class="form-control" id="password" placeholder="Enter Password" />
-            </div>
-            <button type="submit" class="btn btn-primary">Submit</button>
-            <div class="mt-2">
-              <span style="font-size: smaller;">Not yet registered? <a href="/signup">Click here</a></span>
-            </div>
-          </div>
-        </form>
+  <div class="login-wrapper">
+    <div class="form-container">
+      <h1>Login</h1>
+
+      <form @submit.prevent="handleSubmit">
+        <label for="username">Username</label>
+        <input
+          type="text"
+          id="username"
+          v-model="username"
+          placeholder="Enter your username"
+          required
+        />
+
+        <label for="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          v-model="password"
+          placeholder="Enter your password"
+          required
+        />
+
+        <button type="submit">Login</button>
+      </form>
+
+      <p v-if="message" :class="{ error: !success, success: success }">
+        {{ message }}
+      </p>
+
+      <div class="mt-2">
+        <span style="font-size: smaller">Not yet registered? <a href="/">Click here</a></span>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import apiService from '@/services/apiService';
-import NavBar from '@/components/Navbar.vue';
+// Import our new mock login function directly, instead of a generic service
+import { login } from '@/services/mockApi.js';
 import { jwtDecode } from "jwt-decode";
 
 export default {
   name: 'LibLogin',
-  components: {
-    NavBar
-  },
+  
   data() {
     return {
-      user_id: '',
+      username: '',
       password: '',
       message: '', 
       success: false 
@@ -58,73 +55,133 @@ export default {
   methods: {
     async handleSubmit() {
       try {
-        const result = await apiService.post("/login", {
-          user_id: this.user_id,
-          password: this.password
-        });
+        // Call our new mock API function
+        const result = await login(this.username, this.password);
 
-        if (result.status === 200) {
-          const decodedToken = jwtDecode(result.data.accesstoken);
-          const role = decodedToken.sub.role;
-          const user_id = decodedToken.sub.user_id;
-          
-          sessionStorage.setItem("accesstoken", result.data.accesstoken);
+        if (result.success) {
+          // The structure of 'result.data' matches what the original code expected
+          const decodedToken = jwtDecode(result.data.access_token);
+          const role = decodedToken.role;
+          const user_id = result.data.user_id;
+
+          sessionStorage.setItem("accesstoken", result.data.access_token);
           sessionStorage.setItem("role", role);
           sessionStorage.setItem("user_id", user_id);
-          sessionStorage.setItem("loggedIn", true);
-        
-          this.message = 'Logged in successfully!';
+          sessionStorage.setItem("first_name", decodedToken.name); // Store first name for greetings
+          sessionStorage.setItem("loggedIn", "true"); // Use string 'true' for consistency
+
+          this.message = 'Logged in successfully! Redirecting...';
           this.success = true;
 
+          // --- DYNAMIC REDIRECTION LOGIC ---
           setTimeout(() => {
-            this.$router.push('/home');
-          }, 2000); 
+            if (role === 'senior_citizen') {
+              this.$router.push(`/sc/${user_id}`);
+            } else if (role === 'care_giver') {
+              this.$router.push(`/cg/${user_id}`);
+            } else if (role === 'admin') {
+              this.$router.push('/admin'); // Assuming you will create an /admin page
+            } else {
+              // Fallback to a generic homepage if role is unknown
+              this.$router.push('/homepage');
+            }
+          }, 1500); // 1.5-second delay to show the success message
           
+        } else {
+          // Handle login failure from our mock API
+          this.message = result.message || 'Invalid credentials. Please try again!';
+          this.success = false;
         }
       } catch (error) {
-        console.error('Login failed:', error);
-        this.message = 'Invalid credentials. Please try again!';
+        // This catch block will handle unexpected errors
+        console.error('An unexpected error occurred during login:', error);
+        this.message = 'An error occurred. Please try again later.';
         this.success = false;
-
       }
     }
   },
   mounted() {
+    // This part is fine, it prevents logged-in users from seeing the login page again.
+    // For a better user experience, we could add logic here to redirect them to their
+    // correct dashboard instead of a generic one, but for now, we'll leave it as is.
     if (sessionStorage.getItem('loggedIn')) {
-      this.$router.push('/userHome');
+      // this.$router.push('/homepage');
     }
   }
 }
 </script>
 
-<style>
-.container {
-  margin-top: 50px;
+<style scoped>
+.login-wrapper {
+  background-color: #d6eed6;
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: "Times New Roman", serif;
 }
 
 .form-container {
-  max-width: 500px;
-  margin: auto;
+  padding: 2rem;
+  border-radius: 10px;
+  width: 400px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  background-color: #ffffff;
+  box-sizing: border-box;
 }
 
-.form-group {
-  margin-bottom: 15px;
-  text-align: left; 
+h1 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: #333;
 }
 
-.form-control {
-  width: 100%;
-  height: 40px;
-  padding-left: 15px;
-  border: 1px solid skyblue;
+form {
+  display: flex;
+  flex-direction: column;
 }
 
-.btn-primary {
-  width: 100%;
-  height: 40px;
-  background-color: skyblue;
-  color: #fff;
-  border: 1px solid skyblue;
+label {
+  margin: 0.5rem 0 0.2rem;
+  font-weight: bold;
+  text-align: left;
+  color: #333;
+}
+
+input {
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background-color: #fff;
+  margin-bottom: 1rem;
+  font-family: "Times New Roman", serif;
+}
+
+button {
+  padding: 0.6rem;
+  background-color: #4caf50;
+  color: white;
+  font-weight: bold;
+  border: none;
+  border-radius: 5px;
   cursor: pointer;
+  font-family: "Times New Roman", serif;
+}
+
+button:hover {
+  background-color: #388e3c;
+}
+
+p.success {
+  color: green;
+  margin-top: 1rem;
+  text-align: center;
+}
+
+p.error {
+  color: red;
+  margin-top: 1rem;
+  text-align: center;
 }
 </style>
