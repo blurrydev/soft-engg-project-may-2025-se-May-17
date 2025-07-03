@@ -1,11 +1,6 @@
 <template>
   <div class="admin-dashboard container mt-4 p-4 rounded">
 
-    <div v-if="alertMessage" class="alert alert-success alert-dismissible fade show mt-3" role="alert">
-      {{ alertMessage }}
-      <button type="button" class="btn-close" @click="alertMessage = ''" aria-label="Close"></button>
-    </div>
-
     <div class="dashboard-header d-flex justify-content-between align-items-start mb-4">
       <div class="greeting">
         <p class="mb-0">Today</p>
@@ -32,8 +27,8 @@
           <p class="fw-semibold mb-2">Existing Medicines:</p>
           <ul class="list-group mb-2">
             <li v-for="(med, index) in searchResults" :key="index" class="list-group-item py-2 px-3 search-result-item">
-                        <div style="background-color: lemonchiffon; width: 100%">
-              <strong>{{ med.title }}</strong>: {{ med.description }}</div>
+                        <div style="background-color: #fffde7; width: 100%">
+            {{ med.title }}</div>
             </li>
           </ul>
           </div>
@@ -116,6 +111,11 @@
       </div>
     </div>
   </div>
+  <!-- Toast Notification -->
+<div v-if="showToast" class="toast-notification">
+  {{ alertMessage }}
+</div>
+
 </template>
 
 <script setup>
@@ -126,6 +126,15 @@ import {
   searchMasterMedicineList, 
   addMedicineToMemory
 } from '@/services/mockApi'
+const showToast = ref(false)
+
+function triggerToast(message) {
+  alertMessage.value = message
+  showToast.value = true
+  setTimeout(() => {
+    showToast.value = false
+  }, 3000)
+}
 
 const router = useRouter();
 
@@ -135,8 +144,8 @@ function logout() {
 }
 
 const currentDate = new Date().toDateString()
-const alertMessage = ref('')
 const showModal = ref(false)
+const alertMessage = ref('')
 const searchQuery = ref('')
 const searchResults = ref([])
 const isSearching = ref(false)
@@ -162,17 +171,18 @@ const isFormValid = computed(() =>
 async function approveRequest(index) {
   const approved = requests.value[index];
   requests.value.splice(index, 1);
-  alertMessage.value = `${approved.medicine} approved successfully!`;
+  triggerToast(`${approved.medicine} has been approved.`);
 
   await addMedicineToMemory(
     approved.medicine,
     `${approved.description}`
   );
 }
+
 function rejectRequest(index) {
-  const rejected = requests.value[index]
-  requests.value.splice(index, 1)
-  alertMessage.value = `${rejected.medicine} rejected and removed.`
+  const rejected = requests.value[index];
+  requests.value.splice(index, 1);
+  triggerToast(`${rejected.medicine} has been rejected.`);
 }
 
 async function submitMedicine() {
@@ -206,7 +216,7 @@ watch(searchQuery, () => {
 
 <style scoped>
 .admin-dashboard {
-  background-color: #d6eed6;
+  background-color: #eaf5e9;
   border-radius: 20px;
   font-family: 'Serif', Georgia, Times, 'Times New Roman';
 }
@@ -238,12 +248,12 @@ watch(searchQuery, () => {
   border-radius: 8px;
 }
 .search-results {
-  background-color: #d9a8f9;
+  background-color: #e1bee7;
   max-height: 300px;
   overflow-y: auto;
   box-shadow: 0 0 10px white;
-  border-left: 5px solid #d8a7f4; 
-  border-right: 5px solid #d8a7f4; 
+  border-left: 5px solid #e1bee7; 
+  border-right: 5px solid #e1bee7; 
   margin-bottom: 8px;
 }
 .grid-header,
@@ -261,14 +271,18 @@ watch(searchQuery, () => {
 }
 .grid-header{
     padding: 0.5rem 1rem;
-    background-color: #d9a8f9;
+    background-color: #e1bee7;
     border-radius: 8px 8px 0 0;
   border-bottom: 2px solid #ddd;
   font-weight:bold
 }
 
 .bg-light-yellow {
-  background-color: #fffacd;
+  background-color: #fffde7;
+  border: 2px solid #fbc02d;
+  border-radius: 25px;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
 }
 
 .btn-approve {
@@ -315,11 +329,27 @@ watch(searchQuery, () => {
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
 }
 .search-result-item{
-  background-color: lemonchiffon !important;
+  background-color: #fffde7 !important;
   padding: 10px;
   border: none;
   border-radius: 0;
   margin-bottom: 8px;
   width: 100%;
 }
+.toast-notification {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #2c3e50;
+  color: white;
+  padding: 1rem 2rem;
+  border-radius: 10px;
+  font-size: 1rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 9999;
+  transition: opacity 0.3s ease-in-out;
+  white-space: nowrap;
+}
+
 </style>

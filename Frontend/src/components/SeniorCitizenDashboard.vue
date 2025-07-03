@@ -13,7 +13,9 @@
         <router-link to="/senior-stats">
           <span>📈</span>
         </router-link>
-        <span>👤</span>
+        <router-link to="/profile">
+          <span>👤</span>
+        </router-link>
         <button class="logout-button" @click="logout">Logout</button>
 
       </div>

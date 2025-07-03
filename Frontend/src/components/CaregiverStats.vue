@@ -24,7 +24,7 @@
       <div class="chart-section">
         <h3 class="text-center mb-3">Blood Pressure & Sugar (Last Quarter)</h3>
         <div class="chart-area">
-          <Line :data="currentData.bpSugarChartData" :options="lineChartOptions" />
+          <Line :data="currentData.bpSugarChartData" :options="lineChartOptions" :plugins="[monthLabelPlugin]"/>
         </div>
       </div>
     </div>
@@ -56,7 +56,35 @@ ChartJS.register(
   PointElement,
   LineElement
 )
+const monthLabelPlugin = {
+  id: 'monthLabelPlugin',
+  afterDraw(chart) {
+    const { ctx, chartArea, scales } = chart;
+    const xAxis = scales.x;
+    const months = ['Apr', 'May', 'Jun'];
+    const labelPositions = [0, 4, 8]; // indices where each month starts
 
+    ctx.save();
+    ctx.font = 'bold 14px Segoe UI';
+    ctx.fillStyle = '#333';
+    ctx.textAlign = 'center';
+
+    labelPositions.forEach((startIndex, i) => {
+      const endIndex = startIndex + 3;
+      const startPixel = xAxis.getPixelForTick(startIndex);
+      const endPixel = xAxis.getPixelForTick(endIndex);
+      const center = (startPixel + endPixel) / 2;
+
+      ctx.fillText(
+        months[i],
+        center,
+        chartArea.bottom + 40 // adjust vertical position as needed
+      );
+    });
+
+    ctx.restore();
+  }
+};
 const memberData = {
   Mom: {
     medicineChartData: {
@@ -67,29 +95,35 @@ const memberData = {
         data: [8,15, 20,10]
       }]
     },
-    bpSugarChartData: {
-      labels: ['Apr', 'May', 'Jun'],
-      datasets: [
-        {
-          label: 'Systolic BP',
-          borderColor: '#36A2EB',
-          data: [122, 125, 124],
-          fill: false
-        },
-        {
-          label: 'Diastolic BP',
-          borderColor: '#FF6384',
-          data: [78, 80, 77],
-          fill: false
-        },
-        {
-          label: 'Sugar (mg/dL)',
-          borderColor: '#8e5ea2',
-          data: [135, 140, 138],
-          fill: false
-        }
-      ]
+  bpSugarChartData :{
+  labels: [
+    'W1', 'W2', 'W3', 'W4',
+    'W1', 'W2', 'W3', 'W4',
+    'W1', 'W2', 'W3', 'W4'
+  ],
+  datasets: [
+    {
+      label: 'Systolic BP',
+      borderColor: '#36A2EB',
+      data: [124, 126, 125, 128, 129, 123, 127, 126, 124, 125, 128, 127],
+      fill: false,
+      tension: 0.3
+    },
+    {
+      label: 'Diastolic BP',
+      borderColor: '#FF6384',
+      data: [80, 81, 83, 82, 79, 80, 81, 83, 82, 79, 78, 80],
+      fill: false,
+      tension: 0.3
+    },
+    {
+      label: 'Sugar (mg/dL)',
+      borderColor: '#8e5ea2',
+      data: [135, 140, 138, 142, 137, 139, 141, 138, 136, 137, 135, 139],
+      fill: false,
+      tension: 0.3
     }
+  ]}
   },
   Dad: {
     medicineChartData: {
@@ -101,24 +135,28 @@ const memberData = {
       }]
     },
     bpSugarChartData: {
-      labels: ['Apr', 'May', 'Jun'],
+      labels: [
+    'W1', 'W2', 'W3', 'W4',
+    'W1', 'W2', 'W3', 'W4',
+    'W1', 'W2', 'W3', 'W4'
+  ],
       datasets: [
         {
           label: 'Systolic BP',
           borderColor: '#36A2EB',
-          data: [130, 128, 127],
+          data: [118, 120, 117, 119, 121, 123, 124, 122, 120, 121, 119, 118],
           fill: false
         },
         {
           label: 'Diastolic BP',
           borderColor: '#FF6384',
-          data: [84, 83, 82],
+          data: [78, 76, 77, 79, 80, 78, 77, 76, 75, 74, 76, 75],
           fill: false
         },
         {
           label: 'Sugar (mg/dL)',
           borderColor: '#8e5ea2',
-          data: [145, 140, 142],
+          data: [128, 125, 126, 124, 122, 120, 121, 123, 124, 122, 123, 125],
           fill: false
         }
       ]
@@ -134,24 +172,28 @@ const memberData = {
       }]
     },
     bpSugarChartData: {
-      labels: ['Apr', 'May', 'Jun'],
+      labels: [
+    'W1', 'W2', 'W3', 'W4',
+    'W1', 'W2', 'W3', 'W4',
+    'W1', 'W2', 'W3', 'W4'
+  ],
       datasets: [
         {
           label: 'Systolic BP',
           borderColor: '#36A2EB',
-          data: [118, 120, 119],
+          data: [135, 134, 136, 137, 138, 137, 136, 134, 135, 133, 134, 136],
           fill: false
         },
         {
           label: 'Diastolic BP',
           borderColor: '#FF6384',
-          data: [76, 75, 74],
+          data: [88, 87, 89, 90, 91, 90, 89, 87, 88, 86, 87, 88],
           fill: false
         },
         {
           label: 'Sugar (mg/dL)',
           borderColor: '#8e5ea2',
-          data: [130, 128, 132],
+          data: [150, 148, 149, 147, 146, 144, 143, 145, 146, 145, 144, 142],
           fill: false
         }
       ]
@@ -195,12 +237,11 @@ const lineChartOptions = {
   maintainAspectRatio: false,
   plugins: {
     legend: { labels: { font: { weight: 'bold' } } }
-  },
+  },monthLabelPlugin: {},
   scales: {
     x: { ticks: { font: { weight: 'bold' } } ,
       title: {
         display: true,
-        text: 'Month',
         font: {
           weight: 'bold',
           size: 16
@@ -224,7 +265,7 @@ const lineChartOptions = {
   font-family: 'Georgia', serif;
   height: 100vh;
   padding: 1rem 2rem;
-  background-color: #d6eed6;
+  background-color: #eaf5e9;
   display: flex;
   flex-direction: column;
 }

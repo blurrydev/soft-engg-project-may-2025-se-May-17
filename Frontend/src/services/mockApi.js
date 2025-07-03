@@ -440,3 +440,45 @@ export async function getTodaysMeds(dependentId) {
   categorizedMeds.nighttime.sort(sortByTime);
   return categorizedMeds;
 }
+export async function getUserById(userId) {
+  await simulateDelay();
+  return db.users.find(user => user.id === userId) || null;
+}
+
+export async function getCaregiverForSenior(seniorId) {
+  await simulateDelay();
+  const map = db.caregiverDependentMap.find(m => m.dependentId === seniorId);
+  if (!map) return null;
+  return db.users.find(u => u.id === map.caregiverId);
+}
+
+export async function getDependentsForCaregiver(caregiverId) {
+  await simulateDelay();
+  const dependentIds = db.caregiverDependentMap
+    .filter(m => m.caregiverId === caregiverId)
+    .map(m => m.dependentId);
+  return db.users.filter(u => dependentIds.includes(u.id));
+}
+export async function getMedicinesForUser(userId) {
+  await simulateDelay(300);
+  const today = new Date().toISOString().split('T')[0];
+
+  const active = db.userMedMaps.filter(
+    m => m.userId === userId && m.start_date <= today && m.end_date >= today
+  );
+
+  return active.map(m => {
+    const med = db.medicines.find(med => med.id === m.medicineId);
+    let timing = [];
+
+    if (m.breakfast_after) timing.push('Breakfast After');
+    if (m.lunch_before) timing.push('Lunch Before');
+    if (m.dinner_after) timing.push('Dinner After');
+
+    return {
+      name: med?.title || 'Unknown',
+      dosage: m.dosage,
+      timing: timing.join(', ') || 'Not specified',
+    };
+  });
+}

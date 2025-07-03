@@ -11,6 +11,7 @@ import SeniorCitizenDashboard from './components/SeniorCitizenDashboard.vue';
 import AdminDashboard from './components/AdminDashboard.vue';
 import SeniorStats from './components/SeniorStats.vue';
 import CaregiverStats from './components/CaregiverStats.vue';
+import UserProfile from './components/UserProfile.vue';
 const routes = [
     // --- Public Routes ---
     {
@@ -83,6 +84,11 @@ const routes = [
     path: '/caregiver-stats',
     name: 'CaregiverStats',
     component: CaregiverStats
+    },
+    {
+    path: '/profile',
+    name: 'UserProfile',
+    component: UserProfile
     },
 ];
 

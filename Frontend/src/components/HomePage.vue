@@ -10,7 +10,9 @@
         <router-link to="/caregiver-stats">
           <span>📈</span>
         </router-link>
+        <router-link to="/profile">
         <span>👤</span>
+        </router-link>
         <button class="logout-button" @click="logout">Logout</button>
       </div>
     </header>
@@ -45,7 +47,12 @@
                 <!-- Display the reminder slot from the new API response -->
                 {{ dependent.medications[0].reminder_slot }}
               </span>
-              <button class="poke-button" @click="poke(dependent.relation)">POKE</button>
+              <button
+                class="poke-button"
+                :disabled="!isPokeEnabled(dependent.medications[0].reminder_slot)"
+                @click="poke(dependent.relation)">
+                POKE
+              </button>
             </div>
           </div>
         </div>
@@ -167,6 +174,26 @@ async function fetchData(caregiverId) {
   } finally {
     loading.value = false;
   }
+}
+function isPokeEnabled(slot) {
+  const hour = new Date().getHours();
+
+  if (!slot) return false;
+
+  const slotLower = slot.toLowerCase();
+
+  if (slotLower.includes('breakfast')) {
+    return hour >= 4 && hour <= 10;
+  }
+  if (slotLower.includes('lunch')) {
+    return hour >= 10 && hour <= 15;
+  }
+  if (slotLower.includes('dinner')) {
+    return hour >= 16 && hour <= 23;
+  }
+
+  // Default to disabled
+  return false;
 }
 
 function poke(relation) {
@@ -311,4 +338,11 @@ onMounted(() => {
   transition: background-color 0.2s;
 }
 .modal-close-button:hover { background-color: #0b5ed7; }
+.poke-button:disabled {
+  background-color: #ed6e7b;  /* soft alert tone */
+  color: white;
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+
 </style>
