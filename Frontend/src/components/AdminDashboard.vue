@@ -1,20 +1,19 @@
 <template>
-  <div class="admin-dashboard container mt-4 p-4 rounded">
+  <div class="dashboard-wrapper">
+    <div class="header-wrapper">
+      <header class="dashboard-header">
+        <Navbar />
+      </header>
 
-    <div class="dashboard-header d-flex justify-content-between align-items-start mb-4">
-      <div class="greeting">
-        <p class="mb-0">Today</p>
-        <p class="fw-bold">{{ currentDate }}</p>
-        <h3>Greetings Admin,</h3>
-        <br />
-        <h3 class="mt-3 fw-semibold">Medicine Requests</h3>
+      <div class="left-section">
+        <div class="greeting">
+          <h2 class="text-muted small mb-1">{{ formattedDate }}</h2>
+          <h2 class="fw-semibold mb-1">Greetings, Admin</h2>
+          <h5 class="text-muted mt-1">Medicine Requests</h5>
+        </div>
       </div>
 
-
       <div class="search-section">
-              <button class="logout-button" @click="logout">Logout</button>
-              <br><br>
-
         <input
           type="text"
           class="form-control form-control-sm search-input"
@@ -22,16 +21,22 @@
           v-model="searchQuery"
         />
 
-
+        <!-- Search Results -->
         <div v-if="searchResults.length > 0" class="search-results mt-3">
           <p class="fw-semibold mb-2">Existing Medicines:</p>
           <ul class="list-group mb-2">
-            <li v-for="(med, index) in searchResults" :key="index" class="list-group-item py-2 px-3 search-result-item">
-                        <div style="background-color: #fffde7; width: 100%">
-            {{ med.title }}</div>
+            <li
+              v-for="(med, index) in searchResults"
+              :key="index"
+              class="list-group-item py-2 px-3 search-result-item"
+            >
+              <div style="background-color: #fffde7; width: 100%">
+                {{ med.title }}
+              </div>
             </li>
           </ul>
-          </div>
+        </div>
+
         <div v-else-if="searchQuery && !isSearching" class="search-results mt-3">
           <p class="text-muted fst-italic"><b>No medicines found in the database.</b></p>
         </div>
@@ -58,7 +63,8 @@
     <div
       v-for="(request, index) in requests"
       :key="index"
-      :class="['request-row mb-3 p-3 rounded shadow-sm', request.colorClass]">
+      :class="['request-row mb-3 p-3 rounded shadow-sm', request.colorClass]"
+    >
       <div class="grid-row">
         <div><i class="fa-solid fa-pills text-danger"></i></div>
         <div class="fw-bold">{{ request.medicine }}</div>
@@ -110,23 +116,53 @@
         </div>
       </div>
     </div>
-  </div>
-  <!-- Toast Notification -->
-<div v-if="showToast" class="toast-notification">
-  {{ alertMessage }}
-</div>
 
+    <div v-if="showToast" class="toast-notification">
+      {{ alertMessage }}
+    </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useRouter } from 'vue-router';
-
-import { 
-  searchMasterMedicineList, 
+import Navbar from './Navbar.vue'
+import {
+  searchMasterMedicineList,
   addMedicineToMemory
 } from '@/services/mockApi'
+
 const showToast = ref(false)
+const alertMessage = ref('')
+const currentDate = new Date()
+const formattedDate = currentDate.toLocaleDateString('en-US', {
+  weekday: 'long',
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric'
+})
+
+const showModal = ref(false)
+const searchQuery = ref('')
+const searchResults = ref([])
+const isSearching = ref(false)
+
+const newMedicine = ref({
+  title: '',
+  description: '',
+  dosage: ''
+})
+
+const requests = ref([
+  { user: 'Alice', medicine: 'Paracetamol', description: 'Pain relief', dosage: '10mg', colorClass: 'bg-light-yellow' },
+  { user: 'Bob', medicine: 'Ibuprofen', description: 'Anti-inflammatory', dosage: '20mg', colorClass: 'bg-light-yellow' },
+  { user: 'Charlie', medicine: 'Amoxicillin', description: 'Antibiotic', dosage: '10mg', colorClass: 'bg-light-yellow' }
+])
+
+const isFormValid = computed(() =>
+  newMedicine.value.title.trim() &&
+  newMedicine.value.description.trim() &&
+  newMedicine.value.dosage > 0
+)
 
 function triggerToast(message) {
   alertMessage.value = message
@@ -136,64 +172,32 @@ function triggerToast(message) {
   }, 3000)
 }
 
-const router = useRouter();
-
-function logout() {
-  sessionStorage.clear();
-  router.push('/login');
-}
-
-const currentDate = new Date().toDateString()
-const showModal = ref(false)
-const alertMessage = ref('')
-const searchQuery = ref('')
-const searchResults = ref([])
-const isSearching = ref(false)
-
-const newMedicine = ref({
-  title: '',
-  description: '',
-  dosage: '',
-})
-
-const requests = ref([
-  { user: 'Alice', medicine: 'Paracetamol', description: 'Pain relief', dosage: '10mg', colorClass: 'bg-light-yellow' },
-  { user: 'Bob', medicine: 'Ibuprofen', description: 'Anti-inflammatory', dosage: '20mg', colorClass: 'bg-light-yellow' },
-  { user: 'Charlie', medicine: 'Amoxicillin', description: 'Antibiotic', dosage: '10mg', colorClass: 'bg-light-yellow' }
-]);
-
-const isFormValid = computed(() =>
-  newMedicine.value.title.trim() &&
-  newMedicine.value.description.trim() &&
-  newMedicine.value.dosage > 0
-)
-
 async function approveRequest(index) {
-  const approved = requests.value[index];
-  requests.value.splice(index, 1);
-  triggerToast(`${approved.medicine} has been approved.`);
+  const approved = requests.value[index]
+  requests.value.splice(index, 1)
+  triggerToast(`${approved.medicine} has been approved.`)
 
   await addMedicineToMemory(
     approved.medicine,
     `${approved.description}`
-  );
+  )
 }
 
 function rejectRequest(index) {
-  const rejected = requests.value[index];
-  requests.value.splice(index, 1);
-  triggerToast(`${rejected.medicine} has been rejected.`);
+  const rejected = requests.value[index]
+  requests.value.splice(index, 1)
+  triggerToast(`${rejected.medicine} has been rejected.`)
 }
 
 async function submitMedicine() {
-  if (!newMedicine.value.title) return;
+  if (!newMedicine.value.title) return
 
-  alertMessage.value = `Medicine "${newMedicine.value.title}" added successfully!`;
+  alertMessage.value = `Medicine "${newMedicine.value.title}" added successfully!`
 
-  await addMedicineToMemory(newMedicine.value.title, newMedicine.value.description);
+  await addMedicineToMemory(newMedicine.value.title, newMedicine.value.description)
 
-  newMedicine.value = { title: '', description: '', dosage: '', time: '' };
-  showModal.value = false;
+  newMedicine.value = { title: '', description: '', dosage: '' }
+  showModal.value = false
 }
 
 async function handleSearch() {
@@ -215,96 +219,124 @@ watch(searchQuery, () => {
 </script>
 
 <style scoped>
-.admin-dashboard {
-  background-color: #eaf5e9;
-  border-radius: 20px;
-  font-family: 'Serif', Georgia, Times, 'Times New Roman';
-}
-.dashboard-header {
-  gap: 2rem;
-}
-.greeting {
-  font-size: 20px;
+.dashboard-wrapper {
+  background-color: #f0f8f1;
+  min-height: 100vh;
+  font-family: "Times New Roman", serif;
+  padding: 0;
 }
 
-.header-actions {
+.header-wrapper {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end; /* Aligns Navbar to the right */
-  gap: 1rem; /* Creates space between navbar and search box */
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 2rem 3rem;
+  flex-wrap: wrap;
+  background-color: #f0f8f1;
 }
 
-/* This targets the Navbar component specifically inside this new container */
-.header-actions .navbar-container {
-  width: 100%;
-  justify-content: flex-end; /* Pushes icons to the right end of the navbar */
+.left-section {
+  flex: 1 1 60%;
+  max-width: 60%;
 }
+
+.greeting p,
+.greeting h2,
+.greeting h5 {
+  margin: 0;
+}
+
 .search-section {
-  width: 320px;
+  flex: 1 1 300px;
+  max-width: 300px;
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 18px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  margin-top: 1rem;
 }
 
 .search-input {
-  font-size: 18px;
+  border-radius: 12px;
+  border: 1px solid #ccc;
+}
+
+.logout-button {
+  background-color: #00838f;
+  color: white;
+  border: none;
+  padding: 6px 12px;
   border-radius: 8px;
+  font-weight: bold;
+  width: 100%;
+  margin-bottom: 1rem;
 }
-.search-results {
-  background-color: #e1bee7;
-  max-height: 300px;
-  overflow-y: auto;
-  box-shadow: 0 0 10px white;
-  border-left: 5px solid #e1bee7; 
-  border-right: 5px solid #e1bee7; 
-  margin-bottom: 8px;
+
+.add-button {
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 10px;
 }
-.grid-header,
+
+.search-result-item {
+  background-color: #fffde7;
+  border-left: 5px solid #ffcc00;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.grid-header {
+  display: grid;
+  grid-template-columns: 1fr 2fr 3fr 1fr 1fr 2fr;
+  font-weight: bold;
+  background-color: #d0f0e0;
+  padding: 0.8rem 2rem;
+  border-radius: 12px;
+  margin: 1rem 3rem;
+  font-size: 0.95rem;
+  color: #333;
+}
+
 .grid-row {
   display: grid;
-  grid-template-columns: 1fr 2fr 2fr 1fr 1fr 2fr;
+  grid-template-columns: 1fr 2fr 3fr 1fr 1fr 2fr;
   align-items: center;
-  gap: 1rem;
-  font-size: 20px;
-}
-.action-buttons {
-  display: flex;
-  justify-content: flex-end;
   gap: 0.5rem;
 }
-.grid-header{
-    padding: 0.5rem 1rem;
-    background-color: #e1bee7;
-    border-radius: 8px 8px 0 0;
-  border-bottom: 2px solid #ddd;
-  font-weight:bold
+
+.request-row {
+  background-color: #fef9e7;
+  border-left: 6px solid #f9a825;
+  border-radius: 16px;
+  padding: 1rem;
+  font-size: 0.95rem;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  margin: 0 3rem;
 }
 
 .bg-light-yellow {
-  background-color: #fffde7;
-  border: 2px solid #fbc02d;
-  border-radius: 25px;
-  padding: 1rem 1.5rem;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  background-color: #fffde7 !important;
 }
 
 .btn-approve {
-  background-color: #28a745;
+  background-color: #4caf50;
   color: white;
   border: none;
-  padding: 10px 20px;
-  font-size: 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.2s;
+  padding: 6px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.85rem;
 }
 
 .btn-reject {
-  background-color: red;
+  background-color: #e53935;
   color: white;
   border: none;
-  padding: 10px 20px;
-  font-size: 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.2s;
+  padding: 6px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.85rem;
 }
 
 .modal-backdrop {
@@ -315,41 +347,31 @@ watch(searchQuery, () => {
   height: 100%;
   background-color: rgba(0, 0, 0, 0.4);
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   z-index: 1050;
 }
 
 .modal-box {
-  background: white;
+  background-color: #ffffff;
   padding: 2rem;
-  border-radius: 12px;
+  border-radius: 16px;
+  max-width: 500px;
   width: 90%;
-  max-width: 400px;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
-}
-.search-result-item{
-  background-color: #fffde7 !important;
-  padding: 10px;
-  border: none;
-  border-radius: 0;
-  margin-bottom: 8px;
-  width: 100%;
-}
-.toast-notification {
-  position: fixed;
-  bottom: 2rem;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: #2c3e50;
-  color: white;
-  padding: 1rem 2rem;
-  border-radius: 10px;
-  font-size: 1rem;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  z-index: 9999;
-  transition: opacity 0.3s ease-in-out;
-  white-space: nowrap;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
 }
 
+.toast-notification {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #00c853;
+  color: white;
+  padding: 0.8rem 1.5rem;
+  border-radius: 12px;
+  font-weight: bold;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 999;
+}
 </style>

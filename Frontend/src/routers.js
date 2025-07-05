@@ -12,6 +12,8 @@ import AdminDashboard from './components/AdminDashboard.vue';
 import SeniorStats from './components/SeniorStats.vue';
 import CaregiverStats from './components/CaregiverStats.vue';
 import UserProfile from './components/UserProfile.vue';
+import SeniorCitizenProfile from './components/SeniorCitizenProfile.vue';  
+
 const routes = [
     // --- Public Routes ---
     {
@@ -34,7 +36,7 @@ const routes = [
     {
         name: 'ManageDependents',
         component: ManageDependents,
-        path: '/caregiver/manage/dependent',
+        path: '/cg/:userId/manageDependants',
         meta: { 
             requiresAuth: false,
             allowedRoles: ['caregiver', 'all'] //if 'all' is present, it means any user can access this route
@@ -68,7 +70,7 @@ const routes = [
     },
     {
         name: 'DependentProfile',
-        path: '/profile/:userId',
+        path: '/cg/:userId/dependantProfile',
         component: DependentProfile,
         meta: { 
             requiresAuth: false, 
@@ -76,17 +78,23 @@ const routes = [
         }
     },
     {
-    path: '/senior-stats',
+        name: 'SeniorCitizenProfile',
+        path: '/sc/:dep_id/profile',
+        component: SeniorCitizenProfile,
+        
+    },
+    {
+    path: '/sc/:userId/stats',
     name: 'SeniorStats',
     component: SeniorStats
     },
     {
-    path: '/caregiver-stats',
+    path: '/cg/:userId/stats',
     name: 'CaregiverStats',
     component: CaregiverStats
     },
     {
-    path: '/profile',
+    path: '/cg/:userId/profile',
     name: 'UserProfile',
     component: UserProfile
     },

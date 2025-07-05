@@ -1,65 +1,77 @@
 <template>
-  <div class="login-wrapper">
-    <div class="form-container">
-      <h1>Login</h1>
+  <div class="login-page">
+    <Navbar />
 
-      <form @submit.prevent="handleSubmit">
-        <label for="username">Username</label>
-        <input
-          type="text"
-          id="username"
-          v-model="username"
-          placeholder="Enter your username"
-          required
-        />
+    <div class="login-wrapper">
+      <div class="branding-section">
+        <div class="branding-text">
+          <h1>SilverCare</h1>
+          <p>Never Miss a Dose, Never Miss a Moment</p>
+        </div>
+      </div>
 
-        <label for="password">Password</label>
-        <input
-          type="password"
-          id="password"
-          v-model="password"
-          placeholder="Enter your password"
-          required
-        />
+      <div class="form-container">
+        <h1>Login</h1>
+        <form @submit.prevent="handleSubmit">
+          <label for="username">Username</label>
+          <input
+            type="text"
+            id="username"
+            v-model="username"
+            placeholder="Enter your username"
+            required
+          />
 
-        <button type="submit">Login</button>
-      </form>
+          <label for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            v-model="password"
+            placeholder="Enter your password"
+            required
+          />
 
-      <p v-if="message" :class="{ error: !success, success: success }">
-        {{ message }}
-      </p>
+          <button type="submit">Login</button>
+        </form>
 
-      <div class="mt-2">
-        <span style="font-size: smaller">Not yet registered? <a href="/">Click here</a></span>
+        <p v-if="message" :class="{ error: !success, success: success }">
+          {{ message }}
+        </p>
+
+        <div class="mt-2">
+          <span style="font-size: smaller"
+            >Not yet registered? <a href="/signup">Click here</a></span
+          >
+        </div>
       </div>
     </div>
   </div>
 </template>
 
+
 <script>
-// Import our new mock login function directly, instead of a generic service
-import { login } from '@/services/mockApi.js';
+import { login } from "@/services/mockApi.js";
 import { jwtDecode } from "jwt-decode";
+import Navbar from "@/components/Navbar.vue";
 
 export default {
-  name: 'LibLogin',
-  
+  name: "LibLogin",
+  components: {
+    Navbar,
+  },
   data() {
     return {
-      username: '',
-      password: '',
-      message: '', 
-      success: false 
+      username: "",
+      password: "",
+      message: "",
+      success: false,
     };
   },
   methods: {
     async handleSubmit() {
       try {
-        // Call our new mock API function
         const result = await login(this.username, this.password);
-
         if (result.success) {
-          // The structure of 'result.data' matches what the original code expected
           const decodedToken = jwtDecode(result.data.access_token);
           const role = decodedToken.role;
           const user_id = result.data.user_id;
@@ -67,68 +79,93 @@ export default {
           sessionStorage.setItem("accesstoken", result.data.access_token);
           sessionStorage.setItem("role", role);
           sessionStorage.setItem("user_id", user_id);
-          sessionStorage.setItem("first_name", decodedToken.name); // Store first name for greetings
-          sessionStorage.setItem("loggedIn", "true"); // Use string 'true' for consistency
+          sessionStorage.setItem("first_name", decodedToken.name);
+          sessionStorage.setItem("loggedIn", "true");
 
-          this.message = 'Logged in successfully! Redirecting...';
+          this.message = "Logged in successfully! Redirecting...";
           this.success = true;
 
-          // --- DYNAMIC REDIRECTION LOGIC ---
           setTimeout(() => {
-            if (role === 'senior_citizen') {
+            if (role === "senior_citizen") {
               this.$router.push(`/sc/${user_id}`);
-            } else if (role === 'care_giver') {
+            } else if (role === "care_giver") {
               this.$router.push(`/cg/${user_id}`);
-            } else if (role === 'admin') {
-              this.$router.push('/admin'); // Assuming you will create an /admin page
+            } else if (role === "admin") {
+              this.$router.push("/admin");
             } else {
-              // Fallback to a generic homepage if role is unknown
-              this.$router.push('/homepage');
+              this.$router.push("/login");
             }
-          }, 1500); // 1.5-second delay to show the success message
-          
+          }, 1500);
         } else {
-          // Handle login failure from our mock API
-          this.message = result.message || 'Invalid credentials. Please try again!';
+          this.message = result.message || "Invalid credentials. Please try again!";
           this.success = false;
         }
       } catch (error) {
-        // This catch block will handle unexpected errors
-        console.error('An unexpected error occurred during login:', error);
-        this.message = 'An error occurred. Please try again later.';
+        console.error("Login error:", error);
+        this.message = "An error occurred. Please try again later.";
         this.success = false;
       }
-    }
+    },
   },
-  mounted() {
-    // This part is fine, it prevents logged-in users from seeing the login page again.
-    // For a better user experience, we could add logic here to redirect them to their
-    // correct dashboard instead of a generic one, but for now, we'll leave it as is.
-    if (sessionStorage.getItem('loggedIn')) {
-      // this.$router.push('/homepage');
-    }
-  }
-}
+};
 </script>
 
 <style scoped>
-.login-wrapper {
-  background-color: #d6eed6;
+.login-page {
   min-height: 100vh;
-  width: 100vw;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  background-color: #f0f8ff;
+}
+
+.login-wrapper {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: row;
+}
+
+.branding-section {
+  flex: 1.2;
+  background-image: linear-gradient(
+      rgba(0, 0, 0, 0.4),
+      rgba(0, 0, 0, 0.4)
+    ),
+    url('@/assets/elderly-medicine-care.jpg');
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  display: flex;
+  justify-content: flex-start;
   align-items: center;
-  font-family: "Times New Roman", serif;
+  color: white;
+  font-family: "Georgia", serif;
+  padding-left: 15%;
+}
+
+.branding-text h1 {
+  font-size: 5rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: #fff5b0;
+}
+
+.branding-text p {
+  font-size: 1.7rem;
+  font-style: italic;
+  color: #ffffffcc;
+  max-width: 600px;
 }
 
 .form-container {
+  flex: 1;
   padding: 2rem;
-  border-radius: 10px;
+  border-radius: 20px;
   width: 400px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   background-color: #ffffff;
-  box-sizing: border-box;
+  font-family: "Times New Roman", serif;
+  border: 1px solid #e0e0e0;
+  margin: auto;
 }
 
 h1 {
@@ -185,3 +222,4 @@ p.error {
   text-align: center;
 }
 </style>
+

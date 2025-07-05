@@ -60,8 +60,7 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement
-);
-
+)
 // --- ADDED FOR NAVBAR ---
 const router = useRouter();
 function logout() {
@@ -69,13 +68,22 @@ function logout() {
   router.push('/login');
 }
 
-// FIX 1: Moved the plugin out of the `memberData` object to be a standalone constant.
-// This resolves a major syntax error.
+const memberData = {
+  Mom: {
+    medicineChartData: {
+      labels: ['Lisinopril', 'Metformin','Atorvastatin', 'Amlodipine'],
+      datasets: [{
+        label: 'Count',
+        backgroundColor: ['#8884d8', '#82ca9d', '#ffc658', '#e78ac3'],
+        data: [8,15, 20,10]
+      }]
+    }
+  }
+}
 const monthLabelPlugin = {
   id: 'monthLabelPlugin',
   afterDraw(chart) {
     const { ctx, chartArea, scales } = chart;
-    if (!chartArea) return; // Guard clause in case chart area is not ready
     const xAxis = scales.x;
     const months = ['Apr', 'May', 'Jun'];
     const labelPositions = [0, 4, 8]; // indices where each month starts
@@ -86,12 +94,9 @@ const monthLabelPlugin = {
     ctx.textAlign = 'center';
 
     labelPositions.forEach((startIndex, i) => {
-      // Ensure the ticks exist before trying to get their pixel values
-      if (xAxis.getPixelForTick(startIndex) === undefined || xAxis.getPixelForTick(startIndex + 3) === undefined) {
-         return;
-      }
+      const endIndex = startIndex + 3;
       const startPixel = xAxis.getPixelForTick(startIndex);
-      const endPixel = xAxis.getPixelForTick(startIndex + 3);
+      const endPixel = xAxis.getPixelForTick(endIndex);
       const center = (startPixel + endPixel) / 2;
 
       ctx.fillText(
@@ -103,50 +108,31 @@ const monthLabelPlugin = {
 
     ctx.restore();
   }
-};
-
-// FIX 2 & 3: Standardized the line chart data for all members to use a 12-week format.
-// This ensures the `monthLabelPlugin` works correctly for everyone and fixes the data/label mismatch.
-const lastQuarterLabels = [
-    'W1', 'W2', 'W3', 'W4', // Apr
-    'W1', 'W2', 'W3', 'W4', // May
-    'W1', 'W2', 'W3', 'W4'  // Jun
-];
-
-const memberData = {
-  Mom: {
-    medicineChartData: {
-      labels: ['Lisinopril', 'Metformin','Atorvastatin', 'Amlodipine'],
-      datasets: [{
-        label: 'Count',
-        backgroundColor: ['#8884d8', '#82ca9d', '#ffc658', '#e78ac3'],
-        data: [8, 15, 20, 10]
-      }]
-    },
-    // Data updated to 12 weeks
+},
     bpSugarChartData: {
-      labels: lastQuarterLabels,
+      labels: ['Apr', 'May', 'Jun'],
       datasets: [
         {
           label: 'Systolic BP',
           borderColor: '#36A2EB',
-          data: [122, 121, 123, 122, 125, 126, 124, 125, 124, 123, 125, 124],
+          data: [122, 125, 124],
           fill: false
         },
         {
           label: 'Diastolic BP',
           borderColor: '#FF6384',
-          data: [78, 79, 77, 78, 80, 81, 79, 80, 77, 78, 76, 77],
+          data: [78, 80, 77],
           fill: false
         },
         {
           label: 'Sugar (mg/dL)',
           borderColor: '#8e5ea2',
-          data: [135, 133, 136, 135, 140, 141, 139, 140, 138, 139, 137, 138],
+          data: [135, 140, 138],
           fill: false
         }
       ]
     }
+  ]}
   },
   Dad: {
     medicineChartData: {
@@ -154,35 +140,71 @@ const memberData = {
       datasets: [{
         label: 'Count',
         backgroundColor: ['#8884d8', '#e78ac3', '#82ca9d'],
-        data: [20, 18, 15]
+        data: [20, 18,15]
       }]
     },
-    // Data points expanded from 3 to 12 to match the labels
     bpSugarChartData: {
-      labels: lastQuarterLabels,
+      labels: [
+    'W1', 'W2', 'W3', 'W4',
+    'W1', 'W2', 'W3', 'W4',
+    'W1', 'W2', 'W3', 'W4'
+  ],
       datasets: [
         {
           label: 'Systolic BP',
           borderColor: '#36A2EB',
-          data: [130, 131, 129, 130, 128, 129, 127, 128, 127, 126, 128, 127],
+          data: [130, 128, 127],
           fill: false
         },
         {
           label: 'Diastolic BP',
           borderColor: '#FF6384',
-          data: [84, 85, 83, 84, 83, 82, 81, 83, 82, 81, 82, 82],
+          data: [84, 83, 82],
           fill: false
         },
         {
           label: 'Sugar (mg/dL)',
           borderColor: '#8e5ea2',
-          data: [145, 146, 144, 145, 140, 142, 141, 140, 142, 143, 141, 142],
+          data: [145, 140, 142],
           fill: false
         }
       ]
     }
   },
-};
+  Uncle: {
+    medicineChartData: {
+      labels: ['Albuterol','Metformin','Lisinopril'],
+      datasets: [{
+        label: 'Count',
+        backgroundColor: ['#36A2EB','#8884d8', '#e78ac3'],
+        data: [12,25,7]
+      }]
+    },
+    bpSugarChartData: {
+      labels: ['Apr', 'May', 'Jun'],
+      datasets: [
+        {
+          label: 'Systolic BP',
+          borderColor: '#36A2EB',
+          data: [118, 120, 119],
+          fill: false
+        },
+        {
+          label: 'Diastolic BP',
+          borderColor: '#FF6384',
+          data: [76, 75, 74],
+          fill: false
+        },
+        {
+          label: 'Sugar (mg/dL)',
+          borderColor: '#8e5ea2',
+          data: [130, 128, 132],
+          fill: false
+        }
+      ]
+    }
+  }
+}
 
 const currentMember = ref('Mom');
 const currentData = computed(() => memberData[currentMember.value]);
@@ -191,7 +213,7 @@ const currentData = computed(() => memberData[currentMember.value]);
 const barChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
-  plugins: { legend: { display: false } },
+  plugins: { legend: { display: false } }, // Hide legend as it's redundant for one dataset
   scales: {
     x: { ticks: { color: '#333', font: { weight: '600' } }, grid: { display: false } },
     y: {
@@ -205,20 +227,21 @@ const barChartOptions = {
 const lineChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
-  elements: { line: { tension: 0.4 } },
+  elements: { line: { tension: 0.4 } }, // This makes the lines beautifully curved
   plugins: {
     legend: { labels: { font: { weight: 'bold' } } }
   },
   scales: {
-    x: {
-      ticks: { font: { weight: 'bold' } },
-      // Padding ensures the custom month labels below don't get cut off
-      afterFit: (scale) => {
-        scale.paddingBottom = 50;
-      }
-    },
-    y: {
-      ticks: { font: { weight: 'bold' } },
+    x: { ticks: { font: { weight: 'bold' } } ,
+      title: {
+        display: true,
+        text: 'Month',
+        font: {
+          weight: 'bold',
+          size: 16
+        }
+      }},
+    y: { ticks: { font: { weight: 'bold' } },
       title: {
         display: true,
         text: 'Values',
@@ -226,24 +249,20 @@ const lineChartOptions = {
           weight: 'bold',
           size: 16
         }
-      },
-      beginAtZero: false
-    }
+      }, beginAtZero: false }
   }
 };
 </script>
 
 <style scoped>
-/* FIX 4: Changed CSS selector to match the class in the template */
-.stats-dashboard-container {
-  background-color: #eaf5e9;
-  font-family: "Times New Roman", serif;
-  min-height: 100vh;
-  padding: 2.5rem 3rem;
+.caregiver-stats-container {
+  font-family: 'Georgia', serif;
+  height: 100vh;
+  padding: 1rem 2rem;
+  background-color: #d6eed6;
   display: flex;
   flex-direction: column;
 }
-
 
 /* New Header Style */
 .dashboard-header {
@@ -298,9 +317,9 @@ const lineChartOptions = {
 
 /* Chart Layout and Card Styling */
 .charts-row {
-  flex-grow: 1;
+  flex-grow: 1; /* Allows this row to fill available space */
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr; /* Two equal columns */
   gap: 2rem;
 }
 
@@ -324,7 +343,7 @@ const lineChartOptions = {
 
 .chart-area {
   flex-grow: 1;
-  position: relative;
-  min-height: 350px;
+  position: relative; /* Required for chart.js responsiveness */
+  min-height: 350px; /* Ensures chart has space */
 }
 </style>

@@ -15,75 +15,80 @@
       </button>
       <div class="collapse navbar-collapse" id="navbar">
         <div class="navbar-nav">
-          <a v-if="isUser" class="nav-item nav-link text-dark" @click="userHome">
-            <i class="fa fa-home"></i>
+          <a class="nav-item nav-link text-dark" @click="userHome">
+            <h3>SilverCare</h3>
           </a>
-          <a v-if="isAdmin" class="nav-item nav-link text-dark" @click="home">
-            <i class="fa fa-home"></i>
-          </a>
-          <a v-if="!isLoggedIn" class = "nav-item nav-link text-dark" @click="login"><i class = "fa fa-home"></i></a>
         </div>
         <div class="navbar-nav ml-auto">
-          <a v-if="isUser" class="nav-item nav-link text-dark" @click="myBooks">MyBooks</a>
-          <a v-if="isUser" class="nav-item nav-link text-dark" @click="userStats">Stats</a>
-          <a v-if="isAdmin" class="nav-item nav-link text-dark" @click="requests">Requests</a>
-          <a v-if="isAdmin" class="nav-item nav-link text-dark" @click="adminStats">Stats</a>
-          <a v-if="isLoggedIn" class="nav-item nav-link text-dark" @click="logout">Logout</a>
-          <a v-if="!isLoggedIn" class="nav-item nav-link text-dark" @click="admin">Admin</a>
-          <a v-if="!isLoggedIn" class="nav-item nav-link text-dark" @click="SignUp">Sign Up</a>
+          <div class="nav-item dropdown-container">
+            <a class="nav-link profile-icon-link" href="#">
+              <i class="fa fa-user-circle"></i>
+            </a>
+            <div class="dropdown-menu-hover">
+              <a class="dropdown-item" @click="myProfile">My Profile</a>
+              <a class="dropdown-item" @click="summaryReport">Reports</a>
+              <a class="dropdown-item" @click="memberDetails">Member Details</a>
+              <div class="dropdown-divider"></div>
+              <a class="dropdown-item logout-item" @click="logout">Logout</a>
+            </div>
+          </div>
         </div>
       </div>
     </nav>
   </div>
 </template>
 
+
 <script>
 export default {
   name: 'NavBar',
-  computed: {
-    isLoggedIn() {
-      return !!sessionStorage.getItem('loggedIn');
-    },
-    isUser() {
-      return sessionStorage.getItem('role') === 'user';
-    },
-    isAdmin() {
-      return sessionStorage.getItem('role') === 'admin';
+  
+  methods: {
+  logout() {
+    sessionStorage.clear();
+    this.$router.push('/login');
+  },
+  myProfile() {
+    const path = this.$route.path;
+    if (path.startsWith('/sc/dep_001')) {
+      this.$router.push('/sc/dep_001/profile');
+    }else if (path.startsWith('/sc/dep_002')) {
+      this.$router.push('/sc/dep_002/profile');
+    }else{
+      this.$router.push('/cg/user_101/profile')
     }
   },
-  methods: {
-    logout() {
-      sessionStorage.clear();
-      this.$router.push('/');
-    },
-    admin() {
+  memberDetails() {
+    this.$router.push('/cg/user_101/manageDependants');
+  },
+  summaryReport() {
+    const path = this.$route.path;
+    if (path.startsWith('/sc/dep_001')) {
+      this.$router.push('/sc/dep_001/stats');
+    }else if (path.startsWith('/sc/dep_002')) {
+      this.$router.push('/sc/dep_002/stats');
+    }else{
+      this.$router.push('/cg/user_101/stats');
+    }
+  },
+  goHome() {
+    const path = this.$route.path;
+    if (path.startsWith('/sc/dep_001')) {
+      this.$router.push('/sc/dep_001');
+    } else if (path.startsWith('/sc/dep_002')) {
+      this.$router.push('/sc/dep_002');
+    } else if (path.startsWith('/cg/')) {
+      this.$router.push('/cg/user_101');
+    } else if (path.startsWith('/admin')) {
       this.$router.push('/admin');
-    },
-    myBooks() {
-      this.$router.push('/myBooks');
-    },
-    userStats() {
-      this.$router.push('/userStats');
-    },
-    requests() {
-      this.$router.push('/viewRequest');
-    },
-    adminStats() {
-      this.$router.push('/libStats');
-    },
-    userHome() {
-      this.$router.push('/userHome');
-    },
-    home() {
-      this.$router.push('/home');
-    },
-    SignUp() {
-      this.$router.push('/sign-up');
-    },
-    login() {
+    } else {
       this.$router.push('/');
-    },
+    }
+  },
+  triggerSOS() {
+    alert('SOS alert triggered!');
   }
+}
 };
 </script>
 
@@ -91,7 +96,8 @@ export default {
 .navbar {
   background-color: #3b5998; /* Facebook blue */
   padding: 16px;
-  font-family: 'Times New Roman', Times, serif;
+  font-family: 'Times New Roman';
+  font-style: italic;
 }
 
 .navbar ul {
@@ -124,5 +130,54 @@ export default {
 
 .text-dark {
   color: white !important;
+}
+.dropdown-container {
+  position: relative;
+}
+
+.dropdown-menu-hover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  width: 180px;
+  padding: 0.5rem 0;
+  z-index: 1000;
+  border: 1px solid #eee;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: all 0.25s ease-out;
+}
+
+.dropdown-container:hover .dropdown-menu-hover {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dropdown-menu-hover .dropdown-item {
+  display: block;
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
+  color: #333 !important;
+  font-weight: 500;
+}
+
+.dropdown-menu-hover .dropdown-item:hover {
+  background-color: #f0f0f0;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background-color: #eee;
+  margin: 0.5rem 0;
+}
+
+.logout-item {
+  color: #d9534f !important;
+  font-weight: bold !important;
 }
 </style>

@@ -4,6 +4,10 @@
     <div v-else-if="!dependent" class="loading">Profile not found.</div>
     
     <div v-else class="profile-container">
+    <header class="dashboard-header">
+      <div class="greeting"></div>
+      <Navbar/>
+    </header>
       <h1>{{ dependent.firstName }}'s Profile</h1>
 
       <!-- User Details Section -->
@@ -34,7 +38,7 @@
           <span class="med-name">{{ med.medicineTitle }}</span>
           <span class="med-dosage">{{ med.dosage }}</span>
           <span class="med-time"><i class="icon-clock"></i> {{ formatTime(med) }}</span>
-          <i class="icon-trash" @click="handleDeleteMed(med.id)"></i>
+          <span class="icon-trash" @click="handleDeleteMed(med.id)"></span>
         </div>
       </div>
 
@@ -49,7 +53,7 @@
           <span class="med-name">{{ med.medicineTitle }}</span>
           <span class="med-dosage">{{ med.dosage }}</span>
           <span class="med-time"><i class="icon-clock"></i> {{ formatTime(med) }}</span>
-          <i class="icon-trash" @click="handleDeleteMed(med.id)"></i>
+          <span class="icon-trash" @click="handleDeleteMed(med.id)"></span>
         </div>
       </div>
     </div>
@@ -66,6 +70,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
+import Navbar from './Navbar.vue';
 // Import mock API functions
 import { 
   getDependentDetails, 
@@ -144,62 +149,84 @@ const closeAddMedModal = () => showAddMedModal.value = false;
 </script>
 
 <style scoped>
-/* You can use a library like FontAwesome for icons, or use SVGs. This is a placeholder. */
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
+
+/* Icon styles */
 .icon-sun::before { content: '\f185'; font-family: 'Font Awesome 6 Free'; font-weight: 900; margin-right: 8px; }
 .icon-moon::before { content: '\f186'; font-family: 'Font Awesome 6 Free'; font-weight: 900; margin-right: 8px; }
 .icon-pill::before { content: '\f484'; font-family: 'Font Awesome 6 Free'; font-weight: 900; color: #dc3545; }
-.icon-clock::before { content: '\f017'; font-family: 'Font Awesome 6 Free'; font-weight: 400; margin-right: 5px;}
-.icon-trash::before { content: '\f2ed'; font-family: 'Font Awesome 6 Free'; font-weight: 900; color: #dc3545; cursor: pointer;}
+.icon-clock::before { content: '\f017'; font-family: 'Font Awesome 6 Free'; font-weight: 400; margin-right: 5px; }
+.icon-trash::before { content: '\f2ed'; font-family: 'Font Awesome 6 Free'; font-weight: 900; color: #dc3545; cursor: pointer; }
 
+/* General page */
 .page-container {
-  padding: 2rem;
-  font-family: 'Serif', Georgia, Times, 'Times New Roman';
+  background-color: #eaf5e9;
+  font-family: "Times New Roman", serif;
+  min-height: calc(100vh - 58px);
+  padding: 2.5rem 3rem;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
 }
+
 .loading {
   font-size: 1.5rem;
   color: #555;
   margin-top: 5rem;
 }
+
 .profile-container {
-  background-color: #e0f0e0;
-  border-radius: 15px;
+  background-color: #fdfdfd;
+  border-radius: 16px;
   padding: 2rem 3rem;
   width: 100%;
   max-width: 950px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
+
+/* Title */
 h1 {
   text-align: center;
   margin-bottom: 2rem;
+  font-weight: 600;
 }
+
+/* User detail grid */
 .user-details-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2.5rem;
 }
+
 .detail-item {
+  font-family: 'Times New Roman';
+
   display: flex;
   flex-direction: column;
 }
+
 .detail-item label {
   margin-bottom: 0.5rem;
   color: #333;
+  font-weight: 500;
 }
+
 .detail-item input {
   padding: 10px;
-  border-radius: 8px;
-  border: 1px solid #aaccbb;
-  background-color: #f0f8f0;
+  border-radius: 12px;
+  border: 1px solid #b0d0b0;
+  background-color: #f9fff9;
   font-family: inherit;
   font-size: 1rem;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
 }
+
+/* Medication sections */
 .meds-section {
   margin-bottom: 2rem;
 }
+
 .meds-header {
   display: flex;
   justify-content: space-between;
@@ -209,43 +236,74 @@ h1 {
   color: #2c3e50;
   margin-bottom: 1rem;
 }
+
+/* Add Med Button */
 .add-medicine-btn {
-  background-color: #007bff;
+  background-color: #4a74ce;
   color: white;
   border: none;
-  padding: 10px 20px;
-  font-size: 1rem;
-  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 0.95rem;
+  border-radius: 20px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+  transition: background-color 0.2s ease;
 }
 .add-medicine-btn:hover {
-  background-color: #0056b3;
+  background-color: #00796b;
 }
+
+/* Med row styling - pill card look */
 .med-row {
   display: grid;
   grid-template-columns: 30px 1fr 1fr 1.2fr 30px;
   align-items: center;
   gap: 1rem;
-  padding: 1rem;
-  border-radius: 10px;
-  margin-bottom: 0.75rem;
-  font-family: Arial, Helvetica, sans-serif;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  padding: 1rem 1.2rem;
+  border-radius: 25px;
+  margin-bottom: 1rem;
+  font-family: 'Times New Roman';
+  box-shadow: 0 4px 8px rgba(0,0,0,0.06);
+  border: 2px solid transparent;
 }
+
+/* Backgrounds based on time */
 .med-row.daytime {
-  background-color: #fffacd; /* LemonChiffon */
+  background-color: #fffce8;
+  border-color: #ffe082;
 }
+
 .med-row.nighttime {
-  background-color: #e6e6fa; /* Lavender */
+  background-color: #f3e8ff;
+  border-color: #ce93d8;
 }
+
+/* Med row text formatting */
+.med-name {
+  font-weight: bold;
+  font-size: 1rem;
+  color: #2e2e2e;
+}
+
+.med-dosage {
+  color: #555;
+  font-size: 0.95rem;
+}
+
+.med-time {
+  font-size: 0.92rem;
+  color: #666;
+  display: flex;
+  align-items: center;
+}
+
+/* No meds message */
 .no-meds {
   padding: 1rem;
   text-align: center;
   color: #777;
   font-style: italic;
-  background-color: rgba(255,255,255,0.4);
-  border-radius: 10px;
+  background-color: rgba(255, 255, 255, 0.4);
+  border-radius: 15px;
 }
-.med-name { font-weight: bold; }
 </style>
