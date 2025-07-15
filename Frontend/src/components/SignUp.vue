@@ -7,11 +7,11 @@
         <h1>Sign Up</h1>
 
         <form @submit.prevent="handleSubmit">
-          <label for="first_name">Name</label>
-          <input type="text" id="name" v-model="name" placeholder="Enter your First Name" required />
+          <label for="first_name">First Name</label>
+          <input type="text" id="first_name" v-model="first_name" placeholder="Enter your First Name" required />
 
-          <label for="last_name">Name</label>
-          <input type="text" id="name" v-model="name" placeholder="Enter your Last Name" required />
+          <label for="last_name">Last Name</label>
+          <input type="text" id="last_name" v-model="last_name" placeholder="Enter your Last Name" required />
 
 
           <label for="username">Username</label>
@@ -21,7 +21,7 @@
           <input type="password" id="password" v-model="password" placeholder="Enter a password" required />
 
           <label for="confirm_password">Confirm Password</label>
-          <input type="password" id="confirm_password" v-model="password" placeholder="Confirm password" required />
+          <input type="password" id="confirm_password" v-model="confirm_password" placeholder="Confirm password" required />
 
           <label for="role">Role</label>
           <select id="role" v-model="role" required>
@@ -49,18 +49,18 @@
 
 <script>
 import Navbar from "@/components/Navbar.vue";
-import { registerUser } from "@/services/mockApi.js";
-
 export default {
   name: "SignUpPage",
   components: {
-    Navbar,
+     Navbar,
   },
   data() {
     return {
-      name: "",
+      first_name: "",
+      last_name:"",
       username: "",
       password: "",
+      confirm_password:"",
       role: "",
       message: "",
       success: false,
@@ -68,15 +68,43 @@ export default {
   },
   methods: {
     async handleSubmit() {
+      if (this.password !== this.confirm_password) {
+    this.message = "Confirmation password must be the same as your password.";
+    this.success = false;
+    return;
+  }
       try {
-        const result = await registerUser(this.name, this.username, this.password, this.role);
+      const response = await fetch('http://localhost:5000/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          first_name: this.first_name,
+          last_name: this.last_name,
+          username: this.username,
+          password: this.password,
+          confirm_password: this.confirm_password,
+          role: this.role
+        }),
+      });
+
+      const data = await response.json();
+
+      const result = response.ok
+        ? { success: true }
+        : { success: false, message: data.message };
         if (result.success) {
           this.message = "Registered successfully! Please login.";
           this.success = true;
-          this.name = "";
+          this.first_name = "";
+          this.last_name="";
           this.username = "";
           this.password = "";
           this.role = "";
+          setTimeout(() => {
+          this.$router.push('/login');
+        }, 1500);
         } else {
           this.message = result.message || "Registration failed.";
           this.success = false;

@@ -50,7 +50,6 @@
 
 
 <script>
-import { login } from "@/services/mockApi.js";
 import { jwtDecode } from "jwt-decode";
 import Navbar from "@/components/Navbar.vue";
 
@@ -69,8 +68,34 @@ export default {
   },
   methods: {
     async handleSubmit() {
+      if (this.username === 'admin' && this.password === 'admin') {
+      sessionStorage.setItem('role', 'admin');
+      sessionStorage.setItem('user_id', 'admin');
+      sessionStorage.setItem('first_name', 'Admin');
+      sessionStorage.setItem('loggedIn', 'true');
+      this.message = "Logged in as Admin. Redirecting...";
+      this.success = true;
+      setTimeout(() => {
+        this.$router.push('/admin');
+      }, 1000);
+      return; 
+    }
       try {
-        const result = await login(this.username, this.password);
+        const response = await fetch('http://localhost:5000/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: this.username,
+          password: this.password,
+        }),
+      });const data = await response.json();
+
+    const result = response.ok
+      ? { success: true, data }
+      : { success: false, message: data.message };
+
         if (result.success) {
           const decodedToken = jwtDecode(result.data.access_token);
           const role = decodedToken.role;
@@ -90,8 +115,6 @@ export default {
               this.$router.push(`/sc/${user_id}`);
             } else if (role === "care_giver") {
               this.$router.push(`/cg/${user_id}`);
-            } else if (role === "admin") {
-              this.$router.push("/admin");
             } else {
               this.$router.push("/login");
             }

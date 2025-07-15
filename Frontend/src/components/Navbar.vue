@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div>
     <head>
@@ -19,15 +20,19 @@
             <h3>SilverCare</h3>
           </a>
         </div>
-        <div class="navbar-nav ml-auto">
+        <div class="navbar-nav ml-auto" v-if='role'>
           <div class="nav-item dropdown-container">
             <a class="nav-link profile-icon-link" href="#">
               <i class="fa fa-user-circle"></i>
             </a>
             <div class="dropdown-menu-hover">
+              <template v-if="role === 'senior_citizen' || role === 'care_giver'">
               <a class="dropdown-item" @click="myProfile">My Profile</a>
               <a class="dropdown-item" @click="summaryReport">Reports</a>
+              </template>
+              <template v-if="role==='care_giver'">
               <a class="dropdown-item" @click="memberDetails">Member Details</a>
+              </template>
               <div class="dropdown-divider"></div>
               <a class="dropdown-item logout-item" @click="logout">Logout</a>
             </div>
@@ -39,57 +44,59 @@
 </template>
 
 
-<script>
-export default {
-  name: 'NavBar',
-  
-  methods: {
-  logout() {
+<script setup >
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+const role = ref(null)
+const router = useRouter()
+const route = useRoute()
+onMounted(() => {
+  role.value = sessionStorage.getItem('role')
+})
+function logout() {
     sessionStorage.clear();
-    this.$router.push('/login');
-  },
-  myProfile() {
-    const path = this.$route.path;
-    if (path.startsWith('/sc/dep_001')) {
-      this.$router.push('/sc/dep_001/profile');
-    }else if (path.startsWith('/sc/dep_002')) {
-      this.$router.push('/sc/dep_002/profile');
-    }else{
-      this.$router.push('/cg/user_101/profile')
-    }
-  },
-  memberDetails() {
-    this.$router.push('/cg/user_101/manageDependants');
-  },
-  summaryReport() {
-    const path = this.$route.path;
-    if (path.startsWith('/sc/dep_001')) {
-      this.$router.push('/sc/dep_001/stats');
-    }else if (path.startsWith('/sc/dep_002')) {
-      this.$router.push('/sc/dep_002/stats');
-    }else{
-      this.$router.push('/cg/user_101/stats');
-    }
-  },
-  goHome() {
-    const path = this.$route.path;
-    if (path.startsWith('/sc/dep_001')) {
-      this.$router.push('/sc/dep_001');
-    } else if (path.startsWith('/sc/dep_002')) {
-      this.$router.push('/sc/dep_002');
-    } else if (path.startsWith('/cg/')) {
-      this.$router.push('/cg/user_101');
-    } else if (path.startsWith('/admin')) {
-      this.$router.push('/admin');
-    } else {
-      this.$router.push('/');
-    }
-  },
-  triggerSOS() {
-    alert('SOS alert triggered!');
+    router.push('/login');
   }
-}
-};
+function myProfile() {
+    const path = route.path;
+    if (path.startsWith('/sc/dep_001')) {
+      router.push('/sc/dep_001/profile');
+    }else if (path.startsWith('/sc/dep_002')) {
+      router.push('/sc/dep_002/profile');
+    }else{
+      router.push('/cg/user_101/profile')
+    }
+  }
+function memberDetails() {
+    router.push('/cg/user_101/manageDependants');
+  }
+function summaryReport() {
+    const path = route.path;
+    if (path.startsWith('/sc/dep_001')) {
+      router.push('/sc/dep_001/stats');
+    }else if (path.startsWith('/sc/dep_002')) {
+      router.push('/sc/dep_002/stats');
+    }else{
+      router.push('/cg/user_101/stats');
+    }
+  } 
+/*  function goHome() {
+    const path = route.path;
+    if (path.startsWith('/sc/dep_001')) {
+      router.push('/sc/dep_001');
+    } else if (path.startsWith('/sc/dep_002')) {
+      router.push('/sc/dep_002');
+    } else if (path.startsWith('/cg/')) {
+      router.push('/cg/user_101');
+    } else if (path.startsWith('/admin')) {
+      router.push('/admin');
+    } else {
+      router.push('/');
+    }
+  }
+function triggerSOS() {
+    alert('SOS alert triggered!');
+  } */
 </script>
 
 <style>
