@@ -105,6 +105,7 @@ health_entry_model = sc.model("HealthEntry", {
 
 # To verify token
 @sc.route("/api/verify-token")
+@sc.doc(description="Verifies the validity of a JWT token and returns its claims.")
 class VerifyToken(Resource):
     
     def get(self):
@@ -132,6 +133,7 @@ class VerifyToken(Resource):
         
 # Edit user
 @sc.route('/user/<int:user_id>')
+@sc.doc(description="Allows a user to update their own profile details.")
 class EditUser(Resource):
     @jwt_required()
     @sc.expect(user_update_model, validate=True)
@@ -170,6 +172,7 @@ class EditUser(Resource):
 
 #Create medicine
 @sc.route('/create-medicine')
+@sc.doc(description="Creates a new medicine entry in the system.")
 class CreateMedicine(Resource):
     @jwt_required()
     @sc.expect(create_medicine_model, validate=True)
@@ -195,6 +198,7 @@ class CreateMedicine(Resource):
         
 #Get all medicines
 @sc.route('/all-medicines')
+@sc.doc(description="Retrieves all approved medicines.")
 class AllMedicineNames(Resource):
     def get(self):
         medicines = Medicine.query.filter_by(status="approved").all()
@@ -211,6 +215,7 @@ class AllMedicineNames(Resource):
 
 #Edit medicine
 @sc.route('/edit-medicine/<int:medicine_id>')
+@sc.doc(description="Updates an existing medicine entry by its ID (admin only).")
 class EditMedicine(Resource):
     @jwt_required()
     @sc.expect(create_medicine_model, validate=True)
@@ -242,6 +247,7 @@ class EditMedicine(Resource):
 
 #Delete medicine
 @sc.route('/delete-medicine/<int:medicine_id>')
+@sc.doc(description="Deletes a medicine entry by its ID (admin only).")
 class DeleteMedicine(Resource):
     @jwt_required()
     def delete(self, medicine_id):
@@ -272,6 +278,7 @@ class DeleteMedicine(Resource):
 
 # To assign medicine to senior citizen
 @sc.route("/assign-medicine", methods=["POST"])
+@sc.doc(description="Assigns a medicine to a senior citizen or by a caregiver to their mapped senior.")
 class AssignMedicine(Resource):
     @jwt_required()
     @sc.expect(assign_medicine_model, validate=True)
@@ -336,6 +343,7 @@ class AssignMedicine(Resource):
 
 # To unassign medicine for senior citizen
 @sc.route("/unassign-medicine",methods=["DELETE"])
+@sc.doc(description="Unassigns a medicine from a senior citizen (by themselves or their caregiver).")
 class UnassignMedicine(Resource):
     @jwt_required()
     @sc.expect(unassign_medicine_model, validate=True)
@@ -377,6 +385,7 @@ class UnassignMedicine(Resource):
 
 # To get all the medicine assigned to a senior citizen
 @sc.route('/my-medicines')
+@sc.doc(description="Retrieves all medicines assigned to the logged-in senior citizen.")
 class MyMedicines(Resource):
     @jwt_required()
     def get(self):
@@ -409,6 +418,7 @@ class MyMedicines(Resource):
 
 # getting medicine status
 @sc.route("/medicine-status/<int:medicine_id>", methods=["GET"])
+@sc.doc(description="Gets the status of a specific medicine for a user on a given date.")
 class MedicineStatus(Resource):
     @jwt_required()
     @sc.doc(params={
@@ -446,6 +456,7 @@ class MedicineStatus(Resource):
 
 # TO get report of medicine status
 @sc.route("/status-report", methods=["POST"])
+@sc.doc(description="Generates a monthly medicine status report for a senior citizen or by a caregiver for their mapped senior.")
 class StatusReport(Resource):
     @jwt_required()
     @sc.expect(report_model, validate=True)
@@ -508,6 +519,7 @@ class StatusReport(Resource):
 
 # Medicine status for today
 @sc.route('/medicine-status-today')
+@sc.doc(description="Retrieves today's completed and pending medicines for a senior citizen (or by caregiver for their mapped senior).")
 class MedicineStatusToday(Resource):
     @jwt_required()
     @sc.expect(sc.model('SeniorInput', {
@@ -582,6 +594,7 @@ class MedicineStatusToday(Resource):
 
 # Create Medicine Reminder
 @sc.route('/add-medicine-reminder')
+@sc.doc(description="Creates a new reminder for a specific medicine assignment.")
 class AddMedicineReminder(Resource):
     @jwt_required()
     @sc.expect(medicine_reminder_model)
@@ -601,6 +614,7 @@ class AddMedicineReminder(Resource):
 
 # View a specific reminder
 @sc.route('/specific-medicine-reminder')
+@sc.doc(description="Retrieves a specific medicine reminder by its ID.")
 class ViewMedicineReminder(Resource):
     @jwt_required()
     @sc.doc(params={
@@ -627,6 +641,7 @@ class ViewMedicineReminder(Resource):
 
 # Update a reminder
 @sc.route('/update-medicine-reminder')
+@sc.doc(description="Updates an existing medicine reminder.")
 class UpdateMedicineReminder(Resource):
     @jwt_required()
     @sc.expect(medicine_reminder_model)
@@ -652,6 +667,7 @@ class UpdateMedicineReminder(Resource):
 
 # Delete a reminder
 @sc.route('/delete-medicine-reminder')
+@sc.doc(description="Deletes a medicine reminder by its ID.")
 class DeleteMedicineReminder(Resource):
     @jwt_required()
     @sc.doc(params={
@@ -673,6 +689,7 @@ class DeleteMedicineReminder(Resource):
 
 # List all reminders for a specific user_med_map_id
 @sc.route('/list-medicine-reminder')
+@sc.doc(description="Lists all reminders for a specific user-medicine mapping.")
 class ListReminders(Resource):
     @jwt_required()
     @sc.doc(params={
@@ -700,6 +717,7 @@ class ListReminders(Resource):
 
 # Send reminder for a specific medicine
 @sc.route('/send-reminder')
+@sc.doc(description="Sends all active reminders for a specific medicine to the user.")
 class SendMedicineReminder(Resource):
     @jwt_required()
     @sc.expect(send_reminder_model, validate=True)
@@ -747,6 +765,7 @@ class SendMedicineReminder(Resource):
 
 # Send SOS
 @sc.route('/send-sos')
+@sc.doc(description="Sends an SOS alert from a senior citizen to all their mapped caregivers.")
 class SendSOS(Resource):
     @jwt_required()
     # @sc.doc(params={
@@ -789,6 +808,7 @@ class SendSOS(Resource):
 
 # <-------------------------------------Display all medicines of an elderly and caregiver------------------------------------>
 @sc.route('/medicines')
+@sc.doc(description="Retrieves all medicines for the logged-in user (senior or caregiver for their mapped seniors).")
 class AllMedicines(Resource):
     @jwt_required()
     def get(self):
@@ -833,6 +853,7 @@ class AllMedicines(Resource):
 # <-------------------------------------Senior citizen approve caregiver request------------------------------------>
 
 @sc.route('/approve-caregiver')
+@sc.doc(description="Allows a senior citizen to approve or reject a caregiver's request.")
 class ApproveCaregiver(Resource):
     @jwt_required()
     @sc.expect(sc.model('ApproveCaregiver', {
@@ -868,6 +889,7 @@ class ApproveCaregiver(Resource):
 # <-------------------------------------Caregiver send request to senior citizen------------------------------------>
 
 @sc.route('/request-senior')
+@sc.doc(description="Allows a caregiver to send a request to a senior citizen for mapping.")
 class RequestSenior(Resource):
     @jwt_required()
     @sc.expect(sc.model('RequestSenior', {
@@ -912,6 +934,7 @@ class RequestSenior(Resource):
 # <-------------------------------------Admin approval for new medicines------------------------------------>
 
 @sc.route('/admin/medicine/approval')
+@sc.doc(description="Allows an admin to approve or reject a new medicine entry.")
 class MedicineApproval(Resource):
     @jwt_required()
     @sc.expect(sc.model('MedicineApproval', {
@@ -959,6 +982,7 @@ class MedicineApproval(Resource):
 # <-------------------------------------List All Pending Medicines------------------------------------>
 
 @sc.route('/admin/medicine/pending')
+@sc.doc(description="Lists all medicines pending admin approval.")
 class PendingMedicines(Resource):
     @jwt_required()
     def get(self):
@@ -981,6 +1005,7 @@ class PendingMedicines(Resource):
 
 # <-------------------------------------List All Rejected Medicines------------------------------------>
 @sc.route('/admin/medicine/rejected')
+@sc.doc(description="Lists all medicines rejected by the admin.")
 class RejectedMedicines(Resource):
     @jwt_required()
     def get(self):
@@ -1001,6 +1026,7 @@ class RejectedMedicines(Resource):
 
 # <-------------------------------------Upcoming medications------------------------------------>
 @sc.route('/upcoming-medications')
+@sc.doc(description="Retrieves upcoming medications for the logged-in senior or for all mapped seniors of a caregiver, based on the current time slot.")
 class UpcomingMedications(Resource):
     @jwt_required()
     def get(self):
@@ -1017,11 +1043,11 @@ class UpcomingMedications(Resource):
             slots.extend(['breakfast_before', 'breakfast_after'])
         if 10 <= current_hour < 15:
             slots.extend(['lunch_before', 'lunch_after'])
-        if 16 <= current_hour < 23:
+        if 16 <= current_hour < 22:
             slots.extend(['dinner_before', 'dinner_after'])
 
         if not slots:
-            return {"upcoming medications": []}, 200
+            return {"upcoming_medications": []}, 200
 
         result = []
 
@@ -1048,8 +1074,6 @@ class UpcomingMedications(Resource):
         else:
             return {"error": "Unauthorized role"}, 403
 
-        if (not result):
-            return {"message": "No medicine found"}, 404
         return {"upcoming_medications": result}, 200
 
 
@@ -1074,6 +1098,7 @@ def filter_meds_by_time(meds, valid_slots, user_id=None):
 # <-------------------------------------Today's medication for Senior Citizen------------------------------------>
 
 @sc.route('/todays-medications')
+@sc.doc(description="Retrieves all medications scheduled for today for the logged-in senior citizen.")
 class TodaysMedications(Resource):
     @jwt_required()
     def get(self):
@@ -1118,6 +1143,7 @@ class TodaysMedications(Resource):
 # <-------------------------------------Marking Medicines as taken------------------------------------>
 
 @sc.route("/mark-medicine-taken", methods=["PUT"])
+@sc.doc(description="Marks a specific medicine slot as taken for today for the logged-in user.")
 class MarkMedicineTaken(Resource):
     @jwt_required()
     @sc.expect(sc.model('MarkMedicineTaken', {
@@ -1159,6 +1185,7 @@ class MarkMedicineTaken(Resource):
 # <-------------------------------------Daily Health Entry------------------------------------>
 
 @sc.route("/health-entry", methods=["POST"])
+@sc.doc(description="Records a daily health entry (blood pressure and sugar level) for the logged-in user.")
 class HealthEntry(Resource):
     @jwt_required()
     @sc.expect(sc.model('HealthEntry', {
