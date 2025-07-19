@@ -9,11 +9,8 @@ import DependentProfile from './components/DependentProfile.vue';
 import AccessDenied from './components/AccessDenied.vue';
 import SeniorCitizenDashboard from './components/SeniorCitizenDashboard.vue';
 import AdminDashboard from './components/AdminDashboard.vue';
-import SeniorStats from './components/SeniorStats.vue';
-import CaregiverStats from './components/CaregiverStats.vue';
 import UserProfile from './components/UserProfile.vue';
-import SeniorCitizenProfile from './components/SeniorCitizenProfile.vue';  
-
+import StatsPage from './components/StatsPage.vue';
 const routes = [
     // --- Public Routes ---
     {
@@ -45,13 +42,13 @@ const routes = [
     {
         name: 'HomePage',
         component: HomePage,
-        path: '/cg/:userId', // The dynamic path
+        path: '/cg', // The dynamic path
 
     }, 
     {
         name: 'SeniorCitizenDashboard',
         component: SeniorCitizenDashboard,
-        path: '/sc/:dep_id',
+        path: '/sc',
         meta: { 
             requiresAuth: false,
             requiresHasDep: false,
@@ -78,25 +75,14 @@ const routes = [
         }
     },
     {
-        name: 'SeniorCitizenProfile',
-        path: '/sc/:dep_id/profile',
-        component: SeniorCitizenProfile,
-        
-    },
-    {
-    path: '/sc/:userId/stats',
-    name: 'SeniorStats',
-    component: SeniorStats
-    },
-    {
-    path: '/cg/:userId/stats',
-    name: 'CaregiverStats',
-    component: CaregiverStats
-    },
-    {
-    path: '/cg/:userId/profile',
+    path: '/profile',
     name: 'UserProfile',
     component: UserProfile
+    },
+    {
+    path: '/stats',
+    name: 'StatsPage',
+    component: StatsPage
     },
 ];
 

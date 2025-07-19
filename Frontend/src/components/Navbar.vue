@@ -26,9 +26,15 @@
               <i class="fa fa-user-circle"></i>
             </a>
             <div class="dropdown-menu-hover">
+              <template v-if="role==='care_giver'">
+              <a class="dropdown-item" href="/cg">Home</a>
+              </template>
+              <template v-if="role==='senior_citizen'">
+              <a class="dropdown-item" href="/sc">Home</a>
+              </template>
               <template v-if="role === 'senior_citizen' || role === 'care_giver'">
-              <a class="dropdown-item" @click="myProfile">My Profile</a>
-              <a class="dropdown-item" @click="summaryReport">Reports</a>
+              <a class="dropdown-item" href="/profile">My Profile</a>
+              <a class="dropdown-item" href="/stats">Reports</a>
               </template>
               <template v-if="role==='care_giver'">
               <a class="dropdown-item" @click="memberDetails">Member Details</a>
@@ -46,10 +52,10 @@
 
 <script setup >
 import { ref, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 const role = ref(null)
 const router = useRouter()
-const route = useRoute()
+//const route = useRoute()
 onMounted(() => {
   role.value = sessionStorage.getItem('role')
 })
@@ -57,46 +63,9 @@ function logout() {
     sessionStorage.clear();
     router.push('/login');
   }
-function myProfile() {
-    const path = route.path;
-    if (path.startsWith('/sc/dep_001')) {
-      router.push('/sc/dep_001/profile');
-    }else if (path.startsWith('/sc/dep_002')) {
-      router.push('/sc/dep_002/profile');
-    }else{
-      router.push('/cg/user_101/profile')
-    }
-  }
 function memberDetails() {
     router.push('/cg/user_101/manageDependants');
   }
-function summaryReport() {
-    const path = route.path;
-    if (path.startsWith('/sc/dep_001')) {
-      router.push('/sc/dep_001/stats');
-    }else if (path.startsWith('/sc/dep_002')) {
-      router.push('/sc/dep_002/stats');
-    }else{
-      router.push('/cg/user_101/stats');
-    }
-  } 
-/*  function goHome() {
-    const path = route.path;
-    if (path.startsWith('/sc/dep_001')) {
-      router.push('/sc/dep_001');
-    } else if (path.startsWith('/sc/dep_002')) {
-      router.push('/sc/dep_002');
-    } else if (path.startsWith('/cg/')) {
-      router.push('/cg/user_101');
-    } else if (path.startsWith('/admin')) {
-      router.push('/admin');
-    } else {
-      router.push('/');
-    }
-  }
-function triggerSOS() {
-    alert('SOS alert triggered!');
-  } */
 </script>
 
 <style>

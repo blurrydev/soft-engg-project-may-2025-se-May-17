@@ -4,8 +4,9 @@ from flask_restx import Api
 from Backend.resources import sc
 from flask_migrate import Migrate
 from Backend.extensions import db, jwt  # Import from extensions.py
-from Backend.models import User
+from Backend.models import User,Medicine
 import os
+from werkzeug.security import generate_password_hash
 
 def create_app():
     app = Flask(__name__)
@@ -55,5 +56,16 @@ if __name__ == '__main__':
     app = create_app()
     with app.app_context():
         # Do NOT use db.create_all() if using Flask-Migrate!
-        pass
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            admin = User(
+        username='admin',
+        password_hash=generate_password_hash('admin'),
+        role='admin',
+        first_name='Admin',
+        last_name="Admin"
+    )
+
+        db.session.add(admin)
+        db.session.commit()
     app.run(debug=True)

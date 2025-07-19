@@ -68,18 +68,6 @@ export default {
   },
   methods: {
     async handleSubmit() {
-      if (this.username === 'admin' && this.password === 'admin') {
-      sessionStorage.setItem('role', 'admin');
-      sessionStorage.setItem('user_id', 'admin');
-      sessionStorage.setItem('first_name', 'Admin');
-      sessionStorage.setItem('loggedIn', 'true');
-      this.message = "Logged in as Admin. Redirecting...";
-      this.success = true;
-      setTimeout(() => {
-        this.$router.push('/admin');
-      }, 1000);
-      return; 
-    }
       try {
         const response = await fetch('http://localhost:5000/auth/login', {
         method: 'POST',
@@ -112,9 +100,11 @@ export default {
 
           setTimeout(() => {
             if (role === "senior_citizen") {
-              this.$router.push(`/sc/${user_id}`);
+              this.$router.push(`/sc`);
             } else if (role === "care_giver") {
-              this.$router.push(`/cg/${user_id}`);
+              this.$router.push(`/cg`);
+            } else if (role === "admin") {
+              this.$router.push(`/admin`);
             } else {
               this.$router.push("/login");
             }

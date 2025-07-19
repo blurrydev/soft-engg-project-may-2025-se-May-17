@@ -55,8 +55,6 @@
       <div>Image</div>
       <div>Name of Medicine</div>
       <div>Description</div>
-      <div>Dosage</div>
-      <div>User</div>
       <div>Actions</div>
     </div>
 
@@ -67,10 +65,8 @@
     >
       <div class="grid-row">
         <div><i class="fa-solid fa-pills text-danger"></i></div>
-        <div class="fw-bold">{{ request.medicine }}</div>
+        <div class="fw-bold">{{ request.title }}</div>
         <div>{{ request.description }}</div>
-        <div>{{ request.dosage }}</div>
-        <div>{{ request.user }}</div>
         <div class="action-buttons">
           <button class="btn-approve me-2" @click="approveRequest(index)">APPROVE</button>
           <button class="btn-reject" @click="rejectRequest(index)">REJECT</button>
@@ -100,16 +96,6 @@
             required
           ></textarea>
         </div>
-        <div class="mb-2">
-          <input
-            type="number"
-            v-model.number="newMedicine.dosage"
-            class="form-control"
-            placeholder="Dosage (e.g. 10)"
-            min="1"
-            required
-          />
-        </div>
         <div class="text-end">
           <button class="btn btn-secondary me-2" @click="showModal = false">Cancel</button>
           <button class="btn btn-success" :disabled="!isFormValid" @click="submitMedicine">Add</button>
@@ -126,10 +112,27 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import Navbar from './Navbar.vue'
-import {
-  searchMasterMedicineList,
-  addMedicineToMemory
-} from '@/services/mockApi'
+import { onMounted } from 'vue'
+
+const token = sessionStorage.getItem('accesstoken')
+
+async function fetchPendingMedicines() {
+  try {
+    const res = await fetch('http://localhost:5000/sc/admin/medicine/pending', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    const data = await res.json()
+    requests.value = data.medicines || []
+  } catch (err) {
+    console.error('Error fetching pending medicines:', err)
+  }
+}
+
+onMounted(() => {
+  fetchPendingMedicines()
+})
 
 const showToast = ref(false)
 const alertMessage = ref('')
@@ -140,7 +143,6 @@ const formattedDate = currentDate.toLocaleDateString('en-US', {
   month: 'long',
   day: 'numeric'
 })
-
 const showModal = ref(false)
 const searchQuery = ref('')
 const searchResults = ref([])
@@ -152,16 +154,11 @@ const newMedicine = ref({
   dosage: ''
 })
 
-const requests = ref([
-  { user: 'Alice', medicine: 'Paracetamol', description: 'Pain relief', dosage: '10mg', colorClass: 'bg-light-yellow' },
-  { user: 'Bob', medicine: 'Ibuprofen', description: 'Anti-inflammatory', dosage: '20mg', colorClass: 'bg-light-yellow' },
-  { user: 'Charlie', medicine: 'Amoxicillin', description: 'Antibiotic', dosage: '10mg', colorClass: 'bg-light-yellow' }
-])
+const requests = ref([])
 
 const isFormValid = computed(() =>
   newMedicine.value.title.trim() &&
-  newMedicine.value.description.trim() &&
-  newMedicine.value.dosage > 0
+  newMedicine.value.description.trim()
 )
 
 function triggerToast(message) {
@@ -173,43 +170,106 @@ function triggerToast(message) {
 }
 
 async function approveRequest(index) {
-  const approved = requests.value[index]
-  requests.value.splice(index, 1)
-  triggerToast(`${approved.medicine} has been approved.`)
-
-  await addMedicineToMemory(
-    approved.medicine,
-    `${approved.description}`
-  )
+  const med = requests.value[index]
+  try {
+    await fetch('http://localhost:5000/sc/admin/medicine/approval', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        medicine_id: med.id,
+        approve: true
+      })
+    })
+    triggerToast(`${med.title} approved.`)
+    requests.value.splice(index, 1)
+  } catch (err) {
+    console.error('Approval failed:', err)
+    triggerToast('Error approving medicine.')
+  }
 }
 
-function rejectRequest(index) {
-  const rejected = requests.value[index]
-  requests.value.splice(index, 1)
-  triggerToast(`${rejected.medicine} has been rejected.`)
+async function rejectRequest(index) {
+  const med = requests.value[index]
+  try {
+    await fetch('http://localhost:5000/sc/admin/medicine/approval', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        medicine_id: med.id,
+        approve: false
+      })
+    })
+    triggerToast(`${med.title} rejected.`)
+    requests.value.splice(index, 1)
+  } catch (err) {
+    console.error('Rejection failed:', err)
+    triggerToast('Error rejecting medicine.')
+  }
 }
+
 
 async function submitMedicine() {
-  if (!newMedicine.value.title) return
+  if (!newMedicine.value.title || !newMedicine.value.description) {
+    alert('Both title and description are required');
+    return;
+  }
 
-  alertMessage.value = `Medicine "${newMedicine.value.title}" added successfully!`
+  const token = sessionStorage.getItem('accesstoken');
 
-  await addMedicineToMemory(newMedicine.value.title, newMedicine.value.description)
+  try {
+    const res = await fetch('http://localhost:5000/sc/create-medicine', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        title: newMedicine.value.title,
+        description: newMedicine.value.description,
+        status: "approved"  // explicitly setting status from frontend
+      })
+    });
 
-  newMedicine.value = { title: '', description: '', dosage: '' }
-  showModal.value = false
+    const data = await res.json();
+
+    if (res.ok) {
+      triggerToast(`Medicine "${newMedicine.value.title}" added successfully!`);
+      newMedicine.value = { title: '', description: '' };
+      showModal.value = false;
+    } else {
+      alert(data.error || 'Request failed');
+    }
+  } catch (err) {
+    console.error('Error creating medicine:', err);
+    alert('Something went wrong');
+  }
 }
 
 async function handleSearch() {
-  isSearching.value = true
+  isSearching.value = true;
   try {
-    const results = await searchMasterMedicineList(searchQuery.value)
-    searchResults.value = Array.isArray(results) ? results : []
+    const res = await fetch('http://localhost:5000/sc/all-medicines');
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch medicines');
+
+    // Filter medicines by search query on frontend
+    const filtered = data.medicines.filter(med =>
+      med.title.toLowerCase().includes(searchQuery.value.toLowerCase())
+    );
+
+    searchResults.value = filtered;
   } catch (error) {
-    console.error('Search failed:', error)
-    searchResults.value = []
+    console.error('Search failed:', error);
+    searchResults.value = [];
   } finally {
-    isSearching.value = false
+    isSearching.value = false;
   }
 }
 
@@ -288,7 +348,7 @@ watch(searchQuery, () => {
 
 .grid-header {
   display: grid;
-  grid-template-columns: 1fr 2fr 3fr 1fr 1fr 2fr;
+  grid-template-columns: 1fr 1.5fr 3fr 1fr 1fr 2fr;
   font-weight: bold;
   background-color: #d0f0e0;
   padding: 0.8rem 2rem;
@@ -359,6 +419,7 @@ watch(searchQuery, () => {
   max-width: 500px;
   width: 90%;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    font-size: 0.95rem;
 }
 
 .toast-notification {
@@ -373,5 +434,13 @@ watch(searchQuery, () => {
   font-weight: bold;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 999;
+}
+.action-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem; /* space between buttons */
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: nowrap; /* prevent wrapping */
 }
 </style>
