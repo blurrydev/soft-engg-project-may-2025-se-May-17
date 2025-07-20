@@ -28,6 +28,7 @@ login_model = api.model('Login', {
 class Signup(Resource):
     @api.expect(signup_model)
     def post(self):
+        """Signup for a new account"""
         data = request.get_json()
         
         if User.query.filter_by(username=data['username']).first():
@@ -55,6 +56,7 @@ class Signup(Resource):
 class Login(Resource):
     @api.expect(login_model)
     def post(self):
+        """Login to an existing account"""
         data = request.get_json()
         user = User.query.filter_by(username=data['username']).first()
 
@@ -64,8 +66,6 @@ class Login(Resource):
                 expires_delta=timedelta(days=1),
                 additional_claims={
                     'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'username': user.username,
                     'role': user.role
                 }
             )
@@ -81,6 +81,7 @@ class Login(Resource):
 class Protected(Resource):
     @jwt_required()
     def get(self):
+        """Protected route"""
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         return {'message': f'Hello {user.first_name}!'}
