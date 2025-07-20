@@ -45,7 +45,7 @@ user_update_model = sc.model('UserUpdate', {
 create_medicine_model = sc.model('CreateMedicine', {
     'title': fields.String(required=True),
     'description': fields.String(required=True),
-    'image': fields.String(required=False),
+    'image': fields.String(required=True),
 })
 
 assign_medicine_model = sc.model('AssignMedicine', {
@@ -105,10 +105,10 @@ health_entry_model = sc.model("HealthEntry", {
 
 # To verify token
 @sc.route("/api/verify-token")
-@sc.doc(description="Verifies the validity of a JWT token and returns its claims.")
 class VerifyToken(Resource):
     
     def get(self):
+        "Verify JWT token"
         try:
             # Verify the JWT in the request
             verify_jwt_in_request()  # Raises an exception if the token is invalid
@@ -133,7 +133,6 @@ class VerifyToken(Resource):
         
 # Edit user
 @sc.route('/user/<int:user_id>')
-@sc.doc(description="Allows a user to update their own profile details.")
 class EditUser(Resource):
     @jwt_required()
     @sc.expect(user_update_model, validate=True)
@@ -172,7 +171,6 @@ class EditUser(Resource):
 
 #Create medicine
 @sc.route('/create-medicine')
-@sc.doc(description="Creates a new medicine entry in the system.")
 class CreateMedicine(Resource):
     @jwt_required()
     @sc.expect(create_medicine_model, validate=True)
@@ -180,15 +178,12 @@ class CreateMedicine(Resource):
         """Create new medicine entry"""
         data = request.get_json()
         user_id = get_jwt_identity()
-        user = User.query.get(user_id)
-        status = "approved" if user and user.role == "admin" else "pending"
 
         medicine = Medicine(
             title=data['title'],
             description=data['description'],
             user_id=user_id,
-            image=data.get('image'),
-            status=status
+            image=data.get('image')
         )
 
         try:
@@ -201,9 +196,9 @@ class CreateMedicine(Resource):
         
 #Get all medicines
 @sc.route('/all-medicines')
-@sc.doc(description="Retrieves all approved medicines.")
 class AllMedicineNames(Resource):
     def get(self):
+        """Get all medicine names"""
         medicines = Medicine.query.filter_by(status="approved").all()
 
         result = [
@@ -218,7 +213,6 @@ class AllMedicineNames(Resource):
 
 #Edit medicine
 @sc.route('/edit-medicine/<int:medicine_id>')
-@sc.doc(description="Updates an existing medicine entry by its ID (admin only).")
 class EditMedicine(Resource):
     @jwt_required()
     @sc.expect(create_medicine_model, validate=True)
@@ -250,7 +244,6 @@ class EditMedicine(Resource):
 
 #Delete medicine
 @sc.route('/delete-medicine/<int:medicine_id>')
-@sc.doc(description="Deletes a medicine entry by its ID (admin only).")
 class DeleteMedicine(Resource):
     @jwt_required()
     def delete(self, medicine_id):
@@ -281,11 +274,11 @@ class DeleteMedicine(Resource):
 
 # To assign medicine to senior citizen
 @sc.route("/assign-medicine", methods=["POST"])
-@sc.doc(description="Assigns a medicine to a senior citizen or by a caregiver to their mapped senior.")
 class AssignMedicine(Resource):
     @jwt_required()
     @sc.expect(assign_medicine_model, validate=True)
     def post(self):
+        """Assign a medicine to a senior citizen."""
         data = request.get_json()
         user_role = current_user.role
 
@@ -346,11 +339,11 @@ class AssignMedicine(Resource):
 
 # To unassign medicine for senior citizen
 @sc.route("/unassign-medicine",methods=["DELETE"])
-@sc.doc(description="Unassigns a medicine from a senior citizen (by themselves or their caregiver).")
 class UnassignMedicine(Resource):
     @jwt_required()
     @sc.expect(unassign_medicine_model, validate=True)
     def delete(self):
+        """Unassign a medicine from a senior citizen."""
         data = request.get_json()
         user_role = current_user.role
 
@@ -388,10 +381,10 @@ class UnassignMedicine(Resource):
 
 # To get all the medicine assigned to a senior citizen
 @sc.route('/my-medicines')
-@sc.doc(description="Retrieves all medicines assigned to the logged-in senior citizen.")
 class MyMedicines(Resource):
     @jwt_required()
     def get(self):
+        """Get all medicines assigned to a senior citizen."""
         user_id = get_jwt_identity()
         user_role = current_user.role
 
@@ -403,21 +396,6 @@ class MyMedicines(Resource):
         result = []
         for um in user_meds:
             med = um.medicine
-            # Find which slots are assigned at least once
-            assigned_slots = set()
-            for status in um.statuses:
-                if status.breakfast_before is not None:
-                    assigned_slots.add("breakfast_before")
-                if status.breakfast_after is not None:
-                    assigned_slots.add("breakfast_after")
-                if status.lunch_before is not None:
-                    assigned_slots.add("lunch_before")
-                if status.lunch_after is not None:
-                    assigned_slots.add("lunch_after")
-                if status.dinner_before is not None:
-                    assigned_slots.add("dinner_before")
-                if status.dinner_after is not None:
-                    assigned_slots.add("dinner_after")
             result.append({
                 "medicine_id": med.id,
                 "title": med.title,
@@ -426,8 +404,7 @@ class MyMedicines(Resource):
                 "start_date": um.start_date.isoformat(),
                 "end_date": um.end_date.isoformat(),
                 "image": med.image,
-                "is_approved": med.is_approved,
-                "assigned_slots": list(assigned_slots)
+                "is_approved": med.is_approved
             })
         return {"medicines": result}, 200
 
@@ -437,7 +414,6 @@ class MyMedicines(Resource):
 
 # getting medicine status
 @sc.route("/medicine-status/<int:medicine_id>", methods=["GET"])
-@sc.doc(description="Gets the status of a specific medicine for a user on a given date.")
 class MedicineStatus(Resource):
     @jwt_required()
     @sc.doc(params={
@@ -445,6 +421,7 @@ class MedicineStatus(Resource):
     })
 
     def get(self, medicine_id):
+        """Get the status of a specific medicine for a senior citizen."""
         user_id = get_jwt_identity()
         date_str = request.args.get('date')
         if not date_str:
@@ -475,11 +452,11 @@ class MedicineStatus(Resource):
 
 # TO get report of medicine status
 @sc.route("/status-report", methods=["POST"])
-@sc.doc(description="Generates a monthly medicine status report for a senior citizen or by a caregiver for their mapped senior.")
 class StatusReport(Resource):
     @jwt_required()
     @sc.expect(report_model, validate=True)
     def post(self):
+        """Get a report of statuses for a senior citizen."""
         # user_id = get_jwt_identity()
         user_role = current_user.role
         data = request.get_json()
@@ -538,7 +515,6 @@ class StatusReport(Resource):
 
 # Medicine status for today
 @sc.route('/medicine-status-today')
-@sc.doc(description="Retrieves today's completed and pending medicines for a senior citizen (or by caregiver for their mapped senior).")
 class MedicineStatusToday(Resource):
     @jwt_required()
     @sc.expect(sc.model('SeniorInput', {
@@ -546,6 +522,7 @@ class MedicineStatusToday(Resource):
     }), validate=True)
 
     def get(self):
+        """Get the status of all medicines for a senior citizen for today."""
         # user_id = get_jwt_identity()
         user_role = current_user.role
         if(user_role == "senior_citizen"):
@@ -613,7 +590,6 @@ class MedicineStatusToday(Resource):
 
 # Create Medicine Reminder
 @sc.route('/add-medicine-reminder')
-@sc.doc(description="Creates a new reminder for a specific medicine assignment.")
 class AddMedicineReminder(Resource):
     @jwt_required()
     @sc.expect(medicine_reminder_model)
@@ -633,7 +609,6 @@ class AddMedicineReminder(Resource):
 
 # View a specific reminder
 @sc.route('/specific-medicine-reminder')
-@sc.doc(description="Retrieves a specific medicine reminder by its ID.")
 class ViewMedicineReminder(Resource):
     @jwt_required()
     @sc.doc(params={
@@ -660,7 +635,6 @@ class ViewMedicineReminder(Resource):
 
 # Update a reminder
 @sc.route('/update-medicine-reminder')
-@sc.doc(description="Updates an existing medicine reminder.")
 class UpdateMedicineReminder(Resource):
     @jwt_required()
     @sc.expect(medicine_reminder_model)
@@ -686,7 +660,6 @@ class UpdateMedicineReminder(Resource):
 
 # Delete a reminder
 @sc.route('/delete-medicine-reminder')
-@sc.doc(description="Deletes a medicine reminder by its ID.")
 class DeleteMedicineReminder(Resource):
     @jwt_required()
     @sc.doc(params={
@@ -708,12 +681,11 @@ class DeleteMedicineReminder(Resource):
 
 # List all reminders for a specific user_med_map_id
 @sc.route('/list-medicine-reminder')
-@sc.doc(description="Lists all reminders for a specific user-medicine mapping.")
 class ListReminders(Resource):
     @jwt_required()
     @sc.doc(params={
         'user_med_map_id': 'ID of the User-Medicine mapping to fetch reminders for'
-    })
+    }, description='List all reminders for a specific user_med_map_id')
     def get(self):
         """List all reminders for a specific user_med_map_id"""
         user_med_map_id = request.args.get('user_med_map_id', type=int)
@@ -736,7 +708,6 @@ class ListReminders(Resource):
 
 # Send reminder for a specific medicine
 @sc.route('/send-reminder')
-@sc.doc(description="Sends all active reminders for a specific medicine to the user.")
 class SendMedicineReminder(Resource):
     @jwt_required()
     @sc.expect(send_reminder_model, validate=True)
@@ -784,7 +755,6 @@ class SendMedicineReminder(Resource):
 
 # Send SOS
 @sc.route('/send-sos')
-@sc.doc(description="Sends an SOS alert from a senior citizen to all their mapped caregivers.")
 class SendSOS(Resource):
     @jwt_required()
     # @sc.doc(params={
@@ -827,7 +797,6 @@ class SendSOS(Resource):
 
 # <-------------------------------------Display all medicines of an elderly and caregiver------------------------------------>
 @sc.route('/medicines')
-@sc.doc(description="Retrieves all medicines for the logged-in user (senior or caregiver for their mapped seniors).")
 class AllMedicines(Resource):
     @jwt_required()
     def get(self):
@@ -872,7 +841,6 @@ class AllMedicines(Resource):
 # <-------------------------------------Senior citizen approve caregiver request------------------------------------>
 
 @sc.route('/approve-caregiver')
-@sc.doc(description="Allows a senior citizen to approve or reject a caregiver's request.")
 class ApproveCaregiver(Resource):
     @jwt_required()
     @sc.expect(sc.model('ApproveCaregiver', {
@@ -908,7 +876,6 @@ class ApproveCaregiver(Resource):
 # <-------------------------------------Caregiver send request to senior citizen------------------------------------>
 
 @sc.route('/request-senior')
-@sc.doc(description="Allows a caregiver to send a request to a senior citizen for mapping.")
 class RequestSenior(Resource):
     @jwt_required()
     @sc.expect(sc.model('RequestSenior', {
@@ -953,7 +920,6 @@ class RequestSenior(Resource):
 # <-------------------------------------Admin approval for new medicines------------------------------------>
 
 @sc.route('/admin/medicine/approval')
-@sc.doc(description="Allows an admin to approve or reject a new medicine entry.")
 class MedicineApproval(Resource):
     @jwt_required()
     @sc.expect(sc.model('MedicineApproval', {
@@ -962,6 +928,11 @@ class MedicineApproval(Resource):
     }), validate=True)
     def post(self):
         """Admin approves or rejects a medicine"""
+        user_id = get_jwt_identity()
+        admin = User.query.get(user_id)
+
+        if not admin or admin.role != 'admin':
+            return {"error": "Only admins can perform this action."}, 403
 
         data = request.get_json()
         medicine_id = data.get('medicine_id')
@@ -975,6 +946,9 @@ class MedicineApproval(Resource):
             return {"error": "Medicine is already approved."}, 400
         elif (medicine.status == "rejected"):
             return {"error": "Medicine is already rejected."}, 400
+
+        medicine.is_approved = approve
+
         status_msg = "approved" if approve else "rejected"
         
         if status_msg == "approved":
@@ -993,7 +967,6 @@ class MedicineApproval(Resource):
 # <-------------------------------------List All Pending Medicines------------------------------------>
 
 @sc.route('/admin/medicine/pending')
-@sc.doc(description="Lists all medicines pending admin approval.")
 class PendingMedicines(Resource):
     @jwt_required()
     def get(self):
@@ -1006,17 +979,16 @@ class PendingMedicines(Resource):
 
         pending = Medicine.query.filter_by(status="pending").all()
 
-        return {"medicines":[{
+        return [{
             "id": m.id,
             "title": m.title,
             "description": m.description,
             "user_id": m.user_id,
             "created_at": m.created_at.isoformat()
-        } for m in pending]}, 200
+        } for m in pending], 200
 
 # <-------------------------------------List All Rejected Medicines------------------------------------>
 @sc.route('/admin/medicine/rejected')
-@sc.doc(description="Lists all medicines rejected by the admin.")
 class RejectedMedicines(Resource):
     @jwt_required()
     def get(self):
@@ -1037,7 +1009,6 @@ class RejectedMedicines(Resource):
 
 # <-------------------------------------Upcoming medications------------------------------------>
 @sc.route('/upcoming-medications')
-@sc.doc(description="Retrieves upcoming medications for the logged-in senior or for all mapped seniors of a caregiver, based on the current time slot.")
 class UpcomingMedications(Resource):
     @jwt_required()
     def get(self):
@@ -1054,11 +1025,11 @@ class UpcomingMedications(Resource):
             slots.extend(['breakfast_before', 'breakfast_after'])
         if 10 <= current_hour < 15:
             slots.extend(['lunch_before', 'lunch_after'])
-        if 16 <= current_hour < 22:
+        if 16 <= current_hour < 23:
             slots.extend(['dinner_before', 'dinner_after'])
 
         if not slots:
-            return {"upcoming_medications": []}, 200
+            return {"upcoming medications": []}, 200
 
         result = []
 
@@ -1085,6 +1056,8 @@ class UpcomingMedications(Resource):
         else:
             return {"error": "Unauthorized role"}, 403
 
+        if (not result):
+            return {"message": "No medicine found"}, 404
         return {"upcoming_medications": result}, 200
 
 
@@ -1109,7 +1082,6 @@ def filter_meds_by_time(meds, valid_slots, user_id=None):
 # <-------------------------------------Today's medication for Senior Citizen------------------------------------>
 
 @sc.route('/todays-medications')
-@sc.doc(description="Retrieves all medications scheduled for today for the logged-in senior citizen.")
 class TodaysMedications(Resource):
     @jwt_required()
     def get(self):
@@ -1154,7 +1126,6 @@ class TodaysMedications(Resource):
 # <-------------------------------------Marking Medicines as taken------------------------------------>
 
 @sc.route("/mark-medicine-taken", methods=["PUT"])
-@sc.doc(description="Marks a specific medicine slot as taken for today for the logged-in user.")
 class MarkMedicineTaken(Resource):
     @jwt_required()
     @sc.expect(sc.model('MarkMedicineTaken', {
@@ -1162,6 +1133,7 @@ class MarkMedicineTaken(Resource):
         'slot': fields.String(required=True, example="breakfast_before"),
     }), validate=True)
     def put(self):
+        """Mark a medicine as taken for the logged-in senior citizen"""
         user_id = get_jwt_identity()
         data = request.get_json()
         
@@ -1196,7 +1168,6 @@ class MarkMedicineTaken(Resource):
 # <-------------------------------------Daily Health Entry------------------------------------>
 
 @sc.route("/health-entry", methods=["POST"])
-@sc.doc(description="Records a daily health entry (blood pressure and sugar level) for the logged-in user.")
 class HealthEntry(Resource):
     @jwt_required()
     @sc.expect(sc.model('HealthEntry', {
@@ -1205,6 +1176,7 @@ class HealthEntry(Resource):
         'sugar_level': fields.Float(required=True)
     }), validate=True)
     def post(self):
+        """Record a daily health entry for the logged-in senior citizen"""
         user_id = get_jwt_identity()
         data = request.get_json()
         try:
@@ -1227,121 +1199,3 @@ class HealthEntry(Resource):
             return {"error": str(e)}, 500
 
 # <------------------------------------------------------------------------------------------------------------->
-@sc.route('/my-caregiver')
-@sc.doc(description="Fetches the caregiver information for a senior citizen.")
-class MyCaregiver(Resource):
-    @jwt_required()
-    def get(self):
-        user_id = get_jwt_identity()
-        user = User.query.get(user_id)
-        if user.role != "senior_citizen":
-            return {"error": "Unauthorized"}, 403
-        # Get mapping with approved status
-        map = CaregiverSeniorMap.query.filter_by(senior_id=user_id, status='approved').first()
-        if not map:
-            return {"caregiver": None}, 200
-
-        caregiver = User.query.get(map.caregiver_id)
-        return {
-            "caregiver": {
-                "firstName": caregiver.first_name,
-                "lastName": caregiver.last_name,
-                "username": caregiver.username
-            }
-        }, 200
-
-@sc.route('/my-dependents')
-@sc.doc(description="Retrieves all approved senior citizens (dependents) assigned to the logged-in caregiver.")
-class MyDependents(Resource):
-    @jwt_required()
-    def get(self):
-        user_id = get_jwt_identity()
-        user_role = current_user.role
-        if user_role != 'care_giver':
-            return {"error": "You are not authorized to access this resource."}, 403
-
-        # Get all approved seniors linked to this caregiver
-        mappings = CaregiverSeniorMap.query.filter_by(caregiver_id=user_id, status='approved').all()
-        dependents = []
-        for m in mappings:
-            senior = User.query.get(m.senior_id)
-            if senior:
-                dependents.append({
-                    "id": senior.id,
-                    "firstName": senior.first_name,
-                    "lastName": senior.last_name,
-                    "username": senior.username
-                })
-
-        return {"dependents": dependents}, 200
-
-from datetime import date, timedelta
-
-@sc.route('/user-stats/<int:senior_id>')
-@sc.doc(description="Returns medicine compliance and vital statistics.")
-class UserStats(Resource):
-    @jwt_required()
-    def get(self, senior_id):
-        uid = get_jwt_identity()
-        me = User.query.get(uid)
-
-        # Role-based access control
-        if me.role == 'care_giver':
-            mapping = CaregiverSeniorMap.query.filter_by(
-                caregiver_id=uid, senior_id=senior_id, status='approved'
-            ).first()
-            if not mapping:
-                return {"error": "Access denied"}, 403
-        elif me.role != 'senior_citizen' or me.id != senior_id:
-            return {"error": "Access denied"}, 403
-
-        today = date.today()
-        last_30_excluding_today = today - timedelta(days=30)
-
-        meds = UserMedMap.query.filter_by(user_id=senior_id).all()
-        stacked = {}
-
-        for um in meds:
-            name = um.medicine.title
-            stacked.setdefault(name, {"taken": 0, "missed": 0, "total_assigned": 0})
-
-            for s in um.statuses:
-                status_date = s.date.date()
-                if last_30_excluding_today <= status_date < today:
-                    for slot in [
-                        s.breakfast_before, s.breakfast_after,
-                        s.lunch_before, s.lunch_after,
-                        s.dinner_before, s.dinner_after
-                    ]:
-                        if slot is not None:
-                            stacked[name]["total_assigned"] += 1
-                            if slot:
-                                stacked[name]["taken"] += 1
-                            else:
-                                stacked[name]["missed"] += 1
-
-        # Vitals: last 7 days INCLUDING today
-        vitals_start = today - timedelta(days=6)  # last 7 days including today
-        entries = DailyHealthEntry.query.filter(
-            DailyHealthEntry.user_id == senior_id,
-            DailyHealthEntry.date >= vitals_start
-        ).order_by(DailyHealthEntry.date).all()
-
-        days = [e.date.strftime('%b %d') for e in entries]
-        systolic = [e.bp_systolic for e in entries]
-        diastolic = [e.bp_diastolic for e in entries]
-        sugar = [e.sugar_level for e in entries]
-
-        return {
-            "medicineCompliance": {
-                "labels": list(stacked.keys()),
-                "taken": [v["taken"] for v in stacked.values()],
-                "missed": [v["missed"] for v in stacked.values()]
-            },
-            "vitalsLast7": {
-                "labels": days,
-                "systolic": systolic,
-                "diastolic": diastolic,
-                "sugar": sugar
-            }
-        }, 200
