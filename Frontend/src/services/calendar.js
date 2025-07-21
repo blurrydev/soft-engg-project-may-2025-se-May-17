@@ -1,6 +1,120 @@
 import apiService from './apiService'
 
 const medicationService = {
+  // Generate calendar data for a specific month/year
+  async generateCalendarData(month, year) {
+    try {
+      const userId = sessionStorage.getItem('user_id');
+      const role = sessionStorage.getItem('role');
+      if (!userId) throw new Error('No user_id in sessionStorage');
+      // Prepare request body
+      const body = { month, year };
+      if (role === 'care_giver' || role === 'caregiver') {
+        body.user_id = parseInt(userId);
+      }
+      // POST to /sc/status-report
+      const response = await apiService.api.post('/sc/status-report', body);
+      const result = response.data;
+      // result is an object: { 'YYYY-MM-DD': { taken, missed, details: {...} }, ... }
+      // Build calendar days array
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const firstDay = new Date(year, month - 1, 1);
+      // Monday as first day of week
+      const startingDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+      const today = new Date();
+      const medicationDays = [];
+      // Add empty cells for days before the first day of the month
+      for (let i = 0; i < startingDayOfWeek; i++) {
+        medicationDays.push({
+          label: '',
+          date: null,
+          medicationData: null
+        });
+      }
+      // Fill in each day
+      for (let day = 1; day <= daysInMonth; day++) {
+        const currentDate = new Date(year, month - 1, day);
+        const dateStr = currentDate.toISOString().split('T')[0];
+        const isToday = currentDate.toDateString() === today.toDateString();
+        const isFuture = currentDate > today;
+        const isPast = currentDate < today;
+        let taken = 0, missed = 0, pending = 0, completionRate = 0;
+        if (result[dateStr]) {
+          taken = result[dateStr].taken || 0;
+          missed = result[dateStr].missed || 0;
+          // Pending: count slots that are neither taken nor missed (null)
+          const details = result[dateStr].details || {};
+          pending = Object.values(details).filter(v => v === null).length;
+          completionRate = taken + missed > 0 ? (taken / (taken + missed)) * 100 : 0;
+        } else if (isFuture) {
+          pending = 1; // At least one pending for future days
+        }
+        medicationDays.push({
+          label: day.toString(),
+          date: dateStr,
+          medicationData: {
+            taken,
+            missed,
+            pending,
+            isToday,
+            isFuture,
+            isPast,
+            completionRate
+          }
+        });
+      }
+      return medicationDays;
+    } catch (err) {
+      // Fallback to mock data if API fails
+      return await this.generateFallbackData();
+    }
+  },
+
+  // Fallback data for when API fails
+  async generateFallbackData() {
+    const today = new Date();
+    const fallbackDays = [];
+    // Generate 42 days (6 weeks) of fallback data
+    for (let i = 0; i < 42; i++) {
+      if (i < 7) {
+        fallbackDays.push({
+          label: '',
+          date: null,
+          medicationData: null
+        });
+      } else {
+        const day = i - 6;
+        fallbackDays.push({
+          label: day.toString(),
+          date: `2025-01-${day.toString().padStart(2, '0')}`,
+          medicationData: {
+            taken: Math.floor(Math.random() * 3),
+            missed: Math.floor(Math.random() * 2),
+            pending: Math.floor(Math.random() * 2),
+            isToday: day === today.getDate(),
+            isFuture: day > today.getDate(),
+            isPast: day < today.getDate()
+          }
+        });
+      }
+    }
+    return fallbackDays;
+  },
+
+  // Get medication details for a specific day (mock)
+  async getDayMedications(date) {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return {
+      date,
+      medications: [
+        { name: 'Vitamin D', time: '8:00 AM', status: 'taken', person: 'Mom' },
+        { name: 'Blood Pressure Med', time: '12:00 PM', status: 'missed', person: 'Dad' },
+        { name: 'Diabetes Med', time: '6:00 PM', status: 'pending', person: 'Uncle' },
+      ]
+    };
+  },
+
+  // ... keep all other existing methods (getMedicationReport, getAllMedicines, getUpcomingMedicines, sendReminder, processCalendarData, etc.) ...
   async getMedicationReport(month, year, userId) {
     try {
       const response = await apiService.api.post('/sc/status-report', {
@@ -77,112 +191,7 @@ const medicationService = {
     return processedData
   },
 
-  async generateCalendarData(month, year, userId) {
-    try {
-      const reportData = await this.getMedicationReport(month, year, userId)
-      const processedData = this.processCalendarData(reportData.daily_status || [])
-      const data = []
-      const today = new Date()
-      const currentDay = today.getDate()
-      const currentMonth = today.getMonth() + 1
-      const currentYear = today.getFullYear()
-
-      const firstDayOfMonth = new Date(year, month - 1, 1)
-      const startDay = firstDayOfMonth.getDay() === 0 ? 6 : firstDayOfMonth.getDay() - 1 // Monday start
-      const daysInMonth = new Date(year, month, 0).getDate()
-
-      // Fill empty cells for alignment
-      for (let i = 0; i < startDay; i++) {
-        data.push({ label: '', date: '', medicationData: null })
-      }
-
-      for (let i = 1; i <= daysInMonth; i++) {
-        const dayDate = new Date(year, month - 1, i)
-        const isToday = (i === currentDay && month === currentMonth && year === currentYear)
-        const isFutureDay = dayDate > today
-
-        let medicationData = null
-
-        if (processedData[i]) {
-          medicationData = {
-            taken: processedData[i].taken,
-            missed: processedData[i].missed,
-            pending: processedData[i].pending,
-            isToday,
-            isFuture: isFutureDay,
-            isPast: !isToday && !isFutureDay,
-            details: processedData[i].details
-          }
-        } else if (isFutureDay) {
-          medicationData = {
-            taken: 0,
-            missed: 0,
-            pending: 3,
-            isFuture: true
-          }
-        } else {
-          medicationData = {
-            taken: 0,
-            missed: 0,
-            pending: 0,
-            isPast: true
-          }
-        }
-
-        data.push({
-          date: i,
-          label: i.toString(),
-          medicationData
-        })
-      }
-
-      return data
-    } catch (error) {
-      console.error('Error generating calendar data:', error)
-      return this.generateFallbackData()
-    }
-  },
-
-  generateFallbackData() {
-    const data = []
-    const today = new Date()
-    const currentDay = today.getDate()
-    const startDay = new Date(today.getFullYear(), today.getMonth(), 1).getDay()
-    const offset = startDay === 0 ? 6 : startDay - 1
-
-    for (let i = 0; i < offset; i++) {
-      data.push({ label: '', date: '', medicationData: null })
-    }
-
-    for (let i = 1; i <= 30; i++) {
-      const dayDate = new Date(today.getFullYear(), today.getMonth(), i)
-      const isToday = (i === currentDay)
-      const isFutureDay = dayDate > today
-
-      let medicationData = null
-
-      if (isFutureDay) {
-        medicationData = { taken: 0, missed: 0, pending: 3, isFuture: true }
-      } else if (isToday) {
-        medicationData = { taken: 2, missed: 1, pending: 1, isToday: true }
-      } else {
-        medicationData = {
-          taken: Math.floor(Math.random() * 4) + 1,
-          missed: Math.floor(Math.random() * 2),
-          pending: 0,
-          isPast: true
-        }
-      }
-
-      data.push({
-        date: i,
-        label: i.toString(),
-        medicationData
-      })
-    }
-
-    return data
-  }
+  // The original generateCalendarData and generateFallbackData are now replaced by the above implementations
 }
 
 export default medicationService
