@@ -384,29 +384,67 @@ class UnassignMedicine(Resource):
 class MyMedicines(Resource):
     @jwt_required()
     def get(self):
-        """Get all medicines assigned to a senior citizen."""
-        user_id = get_jwt_identity()
-        user_role = current_user.role
+        try:
+            user_id = get_jwt_identity()
 
-        if (user_role != "senior_citizen"):
-            return {"error": "You are not authorized to access this resource."}, 403
-        
+            # Simulate current_user loading
+            current_user = User.query.get(user_id)
+            if not current_user:
+                return {
+                    "error": "User not found.",
+                    "code": "USER_NOT_FOUND"
+                }, 404
 
-        user_meds = UserMedMap.query.filter_by(user_id=user_id).all()
-        result = []
-        for um in user_meds:
-            med = um.medicine
-            result.append({
-                "medicine_id": med.id,
-                "title": med.title,
-                "description": med.description,
-                "dosage": um.dosage,
-                "start_date": um.start_date.isoformat(),
-                "end_date": um.end_date.isoformat(),
-                "image": med.image,
-                "is_approved": med.is_approved
-            })
-        return {"medicines": result}, 200
+            user_role = current_user.role
+
+            if user_role != "senior_citizen":
+                return {
+                    "error": "You are not authorized to access this resource.",
+                    "code": "FORBIDDEN_ROLE"
+                }, 403
+
+            user_meds = UserMedMap.query.filter_by(user_id=user_id).all()
+            if not user_meds:
+                return {
+                    "error": "No medicines found for this user.",
+                    "code": "NO_MEDICINES"
+                }, 404
+
+            result = []
+            for um in user_meds:
+                med = um.medicine
+
+                if not med:
+                    continue  # Skip this entry if medicine relationship is broken
+
+                result.append({
+                    "medicine_id": med.id,
+                    "title": med.title,
+                    "description": med.description,
+                    "dosage": um.dosage,
+                    "start_date": um.start_date.isoformat() if um.start_date else None,
+                    "end_date": um.end_date.isoformat() if um.end_date else None,
+                    "image": med.image,
+                    "is_approved": med.is_approved
+                })
+
+            return {
+                "medicines": result
+            }, 200
+
+        except SQLAlchemyError as e:
+            return {
+                "error": "Database error occurred.",
+                "details": str(e),
+                "code": "DB_ERROR"
+            }, 500
+
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "details": str(e),
+                "code": "INTERNAL_SERVER_ERROR"
+            }, 500
 
 # <---------------------------------------------------------------------------------------------------------------->
 
@@ -417,381 +455,634 @@ class MyMedicines(Resource):
 class MedicineStatus(Resource):
     @jwt_required()
     @sc.doc(params={
-    'date': 'Date in YYYY-MM-DD format (as query parameter)'
+        'date': 'Date in YYYY-MM-DD format (as query parameter)'
     })
-
     def get(self, medicine_id):
         """Get the status of a specific medicine for a senior citizen."""
-        user_id = get_jwt_identity()
-        date_str = request.args.get('date')
-        if not date_str:
-            return {"error": "Date is required in 'YYYY-MM-DD' format as a query parameter."}, 400
         try:
-            target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-        except ValueError:
-            return {"error": "Invalid date format. Use 'YYYY-MM-DD'."}, 400
-        user_med_map = UserMedMap.query.filter_by(user_id=user_id, medicine_id=medicine_id).first()
-        if not user_med_map:
-            return {"error": "Medicine assignment not found."}, 404
-        status = Status.query.filter_by(user_med_map_id=user_med_map.id, date=target_date).first()
+            user_id = get_jwt_identity()
+            date_str = request.args.get('date')
+            
+            if not date_str:
+                return {
+                    "error": "Date is required in 'YYYY-MM-DD' format as a query parameter.",
+                    "code": "DATE_MISSING"
+                }, 400
+            
+            try:
+                target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            except ValueError:
+                return {
+                    "error": "Invalid date format. Use 'YYYY-MM-DD'.",
+                    "code": "INVALID_DATE_FORMAT"
+                }, 400
 
-        if not status:
-            return {"error": "No status entry found for this date."}, 404
-        return {
-            "medicine_id": medicine_id,
-            "date": target_date.isoformat(),
-            "statuses": {
-                "breakfast_before": status.breakfast_before,
-                "breakfast_after": status.breakfast_after,
-                "lunch_before": status.lunch_before,
-                "lunch_after": status.lunch_after,
-                "dinner_before": status.dinner_before,
-                "dinner_after": status.dinner_after
-            }
-        }, 200
+            # Find assigned medicine for user
+            user_med_map = UserMedMap.query.filter_by(user_id=user_id, medicine_id=medicine_id).first()
+            if not user_med_map:
+                return {
+                    "error": "Medicine assignment not found.",
+                    "code": "MEDICINE_ASSIGNMENT_NOT_FOUND"
+                }, 404
 
-# TO get report of medicine status
+            # Find status entry by date
+            status = Status.query.filter_by(user_med_map_id=user_med_map.id, date=target_date).first()
+            if not status:
+                return {
+                    "error": "No status entry found for this date.",
+                    "code": "STATUS_NOT_FOUND"
+                }, 404
+
+            return {
+                "medicine_id": medicine_id,
+                "date": target_date.isoformat(),
+                "statuses": {
+                    "breakfast_before": status.breakfast_before,
+                    "breakfast_after": status.breakfast_after,
+                    "lunch_before": status.lunch_before,
+                    "lunch_after": status.lunch_after,
+                    "dinner_before": status.dinner_before,
+                    "dinner_after": status.dinner_after
+                }
+            }, 200
+        
+        # Database or ORM-related failures
+        except SQLAlchemyError as e:
+            return {
+                "error": "Database error occurred while fetching medicine status.",
+                "code": "DB_ERROR",
+                "details": str(e)
+            }, 500
+
+        # Unexpected errors
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "code": "INTERNAL_SERVER_ERROR",
+                "details": str(e)
+            }, 500
+        
 @sc.route("/status-report", methods=["POST"])
 class StatusReport(Resource):
     @jwt_required()
     @sc.expect(report_model, validate=True)
     def post(self):
         """Get a report of statuses for a senior citizen."""
-        # user_id = get_jwt_identity()
-        user_role = current_user.role
-        data = request.get_json()
-        month = data.get("month")
-        year = data.get("year")
+        try:
+            user_role = current_user.role
+            data = request.get_json()
 
-        if(user_role == "senior_citizen"):
-            user_id = current_user.id
-        elif user_role == "care_giver":
-            user_id = data.get("user_id")
-            if not user_id:
-                return {"error": "Missing 'senior citizen id' for caregiver"}, 400
-            # Check caregiver-senior relationship
-            is_approved = CaregiverSeniorMap.query.filter_by(
-                caregiver_id=current_user.id,
-                senior_id=user_id,
-                status='approved'
+            month = data.get("month")
+            year = data.get("year")
+
+            if month is None or year is None:
+                return {
+                    "error": "Month and year are required in request body.",
+                    "code": "MONTH_YEAR_REQUIRED"
+                }, 400
+
+            # Determine user_id based on role
+            if user_role == "senior_citizen":
+                user_id = current_user.id
+            elif user_role == "care_giver":
+                user_id = data.get("user_id")
+                if not user_id:
+                    return {
+                        "error": "Missing 'user_id' (senior citizen ID) for caregiver.",
+                        "code": "MISSING_SENIOR_ID"
+                    }, 400
+
+                # Validate caregiver-senior relationship
+                is_approved = CaregiverSeniorMap.query.filter_by(
+                    caregiver_id=current_user.id,
+                    senior_id=user_id,
+                    status='approved'
                 ).first()
-            
-            if not is_approved:
-                return {"error": "You are not an approved caregiver for this senior citizen."}, 403
-            
-        if month is None or year is None:
-            return {"error": "Month and year are required in JSON body."}, 400
 
-        statuses = db.session.query(Status).join(UserMedMap).filter(
-            UserMedMap.user_id == user_id,
-            extract('month', Status.date) == month,
-            extract('year', Status.date) == year
-        ).all()
+                if not is_approved:
+                    return {
+                        "error": "You are not an approved caregiver for this senior citizen.",
+                        "code": "CAREGIVER_NOT_APPROVED"
+                    }, 403
+            else:
+                return {
+                    "error": "You are not authorized to access this resource.",
+                    "code": "UNAUTHORIZED_ROLE"
+                }, 403
 
-        result = {}
-        for status in statuses:
-            date_str = status.date.strftime('%Y-%m-%d')
-            slot_statuses = {
-                "breakfast_before": status.breakfast_before,
-                "breakfast_after": status.breakfast_after,
-                "lunch_before": status.lunch_before,
-                "lunch_after": status.lunch_after,
-                "dinner_before": status.dinner_before,
-                "dinner_after": status.dinner_after
-            }
-            taken = sum(1 for v in slot_statuses.values() if v is True)
-            missed = sum(1 for v in slot_statuses.values() if v is False)
+            # Fetch all statuses for specified month and year
+            statuses = db.session.query(Status).join(UserMedMap).filter(
+                UserMedMap.user_id == user_id,
+                extract('month', Status.date) == month,
+                extract('year', Status.date) == year
+            ).all()
 
-            result[date_str] = {
-                "taken": taken,
-                "missed": missed,
-                "details": slot_statuses 
-            }
+            result = {}
+            for status in statuses:
+                date_str = status.date.strftime('%Y-%m-%d')
+                slot_statuses = {
+                    "breakfast_before": status.breakfast_before,
+                    "breakfast_after": status.breakfast_after,
+                    "lunch_before": status.lunch_before,
+                    "lunch_after": status.lunch_after,
+                    "dinner_before": status.dinner_before,
+                    "dinner_after": status.dinner_after
+                }
+                taken = sum(1 for v in slot_statuses.values() if v is True)
+                missed = sum(1 for v in slot_statuses.values() if v is False)
 
-        return result, 200
+                result[date_str] = {
+                    "taken": taken,
+                    "missed": missed,
+                    "details": slot_statuses
+                }
+
+            return result, 200
+
+        # Handle DB errors
+        except SQLAlchemyError as e:
+            return {
+                "error": "Database error occurred while fetching status report.",
+                "code": "DB_ERROR",
+                "details": str(e)
+            }, 500
+
+        # Handle all unexpected exceptions
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "code": "INTERNAL_SERVER_ERROR",
+                "details": str(e)
+            }, 500
 
 
 # <------------------------------------Medicine Status for today------------------------------------>
 
-# Medicine status for today
 @sc.route('/medicine-status-today')
 class MedicineStatusToday(Resource):
     @jwt_required()
     @sc.expect(sc.model('SeniorInput', {
         'senior_citizen_id': fields.Integer(required=True, description='ID of the senior citizen')
     }), validate=True)
-
     def get(self):
         """Get the status of all medicines for a senior citizen for today."""
-        # user_id = get_jwt_identity()
-        user_role = current_user.role
-        if(user_role == "senior_citizen"):
-            user_id = current_user.id
+        try:
+            user_role = current_user.role
 
-        elif user_role == "care_giver":
-            data = request.get_json()
-            user_id = data.get("senior_citizen_id")
-            if not user_id:
-                return {"error": "Missing 'senior_citizen_id' for caregiver"}, 400
-            
-            # Check caregiver-senior relationship
-            is_approved = CaregiverSeniorMap.query.filter_by(
-                caregiver_id=current_user.id,
-                senior_id=user_id,
-                status='approved'
+            if user_role == "senior_citizen":
+                user_id = current_user.id
+
+            elif user_role == "care_giver":
+                data = request.get_json()
+                user_id = data.get("senior_citizen_id")
+
+                if not user_id:
+                    return {
+                        "error": "Missing 'senior_citizen_id' for caregiver.",
+                        "code": "MISSING_SENIOR_ID"
+                    }, 400
+
+                # Check caregiver-senior relationship
+                is_approved = CaregiverSeniorMap.query.filter_by(
+                    caregiver_id=current_user.id,
+                    senior_id=user_id,
+                    status='approved'
                 ).first()
-            if not is_approved:
-                return {"error": "You are not an approved caregiver for this senior citizen."}, 403
-            
-        ist = pytz.timezone('Asia/Kolkata')
-        current_date = datetime.now(ist).date()
-        
-        user_meds = UserMedMap.query.filter_by(user_id=user_id).all()
-        completed_meds = []
-        pending_meds = []
-        
-        for um in user_meds:
-            status = Status.query.filter(
-                Status.user_med_map_id == um.id,
-                func.date(Status.date) == current_date
-            ).first()
-            if not status:
-                continue
-            slots = [
-                status.breakfast_before, status.breakfast_after,
-                status.lunch_before, status.lunch_after,
-                status.dinner_before, status.dinner_after
-            ]
-            valid_slots = [s for s in slots if s is not None]
-            if not valid_slots:
-                continue
-            if all(valid_slots):
-                completed_meds.append({
-                    'medicine_id': um.medicine_id,
-                    'medicine_title': um.medicine.title,
-                    'dosage': um.dosage
-                })
+                if not is_approved:
+                    return {
+                        "error": "You are not an approved caregiver for this senior citizen.",
+                        "code": "CAREGIVER_NOT_APPROVED"
+                    }, 403
+
             else:
-                pending_meds.append({
+                return {
+                    "error": "Unauthorized role.",
+                    "code": "UNAUTHORIZED_ROLE"
+                }, 403
+
+            # Get medicine status for today
+            ist = pytz.timezone('Asia/Kolkata')
+            current_date = datetime.now(ist).date()
+
+            user_meds = UserMedMap.query.filter_by(user_id=user_id).all()
+            completed_meds = []
+            pending_meds = []
+
+            for um in user_meds:
+                status = Status.query.filter(
+                    Status.user_med_map_id == um.id,
+                    func.date(Status.date) == current_date
+                ).first()
+
+                if not status:
+                    continue
+
+                slots = [
+                    status.breakfast_before, status.breakfast_after,
+                    status.lunch_before, status.lunch_after,
+                    status.dinner_before, status.dinner_after
+                ]
+
+                valid_slots = [s for s in slots if s is not None]
+                if not valid_slots:
+                    continue
+
+                med_info = {
                     'medicine_id': um.medicine_id,
                     'medicine_title': um.medicine.title,
                     'dosage': um.dosage
-                })
-        
-        return {
-            'date': current_date.isoformat(),
-            'completed_medicines': completed_meds,
-            'pending_medicines': pending_meds
-        }, 200
+                }
+
+                if all(valid_slots):
+                    completed_meds.append(med_info)
+                else:
+                    pending_meds.append(med_info)
+
+            return {
+                'date': current_date.isoformat(),
+                'completed_medicines': completed_meds,
+                'pending_medicines': pending_meds
+            }, 200
+
+        except SQLAlchemyError as e:
+            return {
+                "error": "A database error occurred while retrieving today's medicine status.",
+                "code": "DB_ERROR",
+                "details": str(e)
+            }, 500
+
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "code": "INTERNAL_SERVER_ERROR",
+                "details": str(e)
+            }, 500
 
 #<------------------------------------------------------------------------------------------------------------------>
 
 #<------------------------------------CRUD Operations for Medicine Reminder------------------------------------>
-
-# Create Medicine Reminder
 @sc.route('/add-medicine-reminder')
 class AddMedicineReminder(Resource):
     @jwt_required()
-    @sc.expect(medicine_reminder_model)
+    @sc.expect(medicine_reminder_model, validate=True)
     def post(self):
         """Add a new medicine reminder"""
-        data = request.json
-        reminder = MedicineReminder(
-            user_med_map_id=data['user_med_map_id'],
-            reminder_time=data['reminder_time'],
-            notification_type=data['notification_type'],
-            message=data['message'],
-            active=data.get('active', True)
-        )
-        db.session.add(reminder)
-        db.session.commit()
-        return {"message": "Reminder created", "id": reminder.id}, 201
+        try:
+            data = request.get_json()
 
-# View a specific reminder
+            # Validate required fields (additional safeguard beyond `validate=True`)
+            required_fields = ['user_med_map_id', 'reminder_time', 'notification_type', 'message']
+            for field in required_fields:
+                if field not in data:
+                    return {
+                        "error": f"'{field}' is a required field.",
+                        "code": "MISSING_FIELD"
+                    }, 400
+
+            # Optional: check if user has permission (e.g., only caregivers or seniors can add reminders)
+            # Example stub:
+            # if current_user.role not in ['senior_citizen', 'care_giver']:
+            #     return {"error": "You are not authorized to add reminders.", "code": "FORBIDDEN_ROLE"}, 403
+
+            reminder = MedicineReminder(
+                user_med_map_id=data['user_med_map_id'],
+                reminder_time=data['reminder_time'],
+                notification_type=data['notification_type'],
+                message=data['message'],
+                active=data.get('active', True)
+            )
+
+            db.session.add(reminder)
+            db.session.commit()
+
+            return {
+                "message": "Reminder created successfully.",
+                "id": reminder.id
+            }, 201
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return {
+                "error": "A database error occurred while saving the reminder.",
+                "code": "DB_ERROR",
+                "details": str(e)
+            }, 500
+
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "code": "INTERNAL_SERVER_ERROR",
+                "details": str(e)
+            }, 500
+        
 @sc.route('/specific-medicine-reminder')
 class ViewMedicineReminder(Resource):
     @jwt_required()
     @sc.doc(params={
-        'reminder_id': 'ID of the reminder mapping to fetch reminders for'
+        'reminder_id': 'ID of the reminder to fetch'
     })
     def get(self):
-        """View a specific reminder by query param"""
-        reminder_id = request.args.get('reminder_id', type=int)
-        if not reminder_id:
-            return {"error": "Reminder ID is required in query"}, 400
+        """View a specific medicine reminder by ID (query parameter)"""
+        try:
+            reminder_id = request.args.get('reminder_id', type=int)
 
-        reminder = MedicineReminder.query.get(reminder_id)
-        if not reminder:
-            return {"error": "Reminder not found"}, 404
+            # Validate query parameter
+            if not reminder_id:
+                return {
+                    "error": "Query parameter 'reminder_id' is required and must be an integer.",
+                    "code": "MISSING_REMINDER_ID"
+                }, 400
 
-        return {
-            "id": reminder.id,
-            "user_med_map_id": reminder.user_med_map_id,
-            "reminder_time": reminder.reminder_time,
-            "notification_type": reminder.notification_type,
-            "message": reminder.message,
-            "active": reminder.active
-        }, 200
+            reminder = MedicineReminder.query.get(reminder_id)
 
-# Update a reminder
+            # Check if reminder exists
+            if not reminder:
+                return {
+                    "error": "Reminder not found for the given ID.",
+                    "code": "REMINDER_NOT_FOUND"
+                }, 404
+
+            return {
+                "id": reminder.id,
+                "user_med_map_id": reminder.user_med_map_id,
+                "reminder_time": str(reminder.reminder_time),
+                "notification_type": reminder.notification_type,
+                "message": reminder.message,
+                "active": reminder.active
+            }, 200
+
+        except SQLAlchemyError as e:
+            return {
+                "error": "Database error occurred while retrieving the reminder.",
+                "code": "DB_ERROR",
+                "details": str(e)
+            }, 500
+
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "code": "INTERNAL_SERVER_ERROR",
+                "details": str(e)
+            }, 500
+        
 @sc.route('/update-medicine-reminder')
 class UpdateMedicineReminder(Resource):
     @jwt_required()
-    @sc.expect(medicine_reminder_model)
+    @sc.expect(medicine_reminder_model, validate=True)
     def put(self):
         """Update a reminder using body data"""
-        data = request.json
-        reminder_id = data.get('reminder_id')
-        if not reminder_id:
-            return {"error": "Reminder ID is required in body"}, 400
+        try:
+            data = request.get_json()
+            reminder_id = data.get('reminder_id')
 
-        reminder = MedicineReminder.query.get(reminder_id)
-        if not reminder:
-            return {"error": "Reminder not found"}, 404
+            if not reminder_id:
+                return {
+                    "error": "Field 'reminder_id' is required in the request body.",
+                    "code": "MISSING_REMINDER_ID"
+                }, 400
 
-        reminder.user_med_map_id = data['user_med_map_id']
-        reminder.reminder_time = data['reminder_time']
-        reminder.notification_type = data['notification_type']
-        reminder.message = data['message']
-        reminder.active = data.get('active', True)
+            reminder = MedicineReminder.query.get(reminder_id)
+            if not reminder:
+                return {
+                    "error": f"Reminder with ID {reminder_id} not found.",
+                    "code": "REMINDER_NOT_FOUND"
+                }, 404
 
-        db.session.commit()
-        return {"message": "Reminder updated"}, 200
+            required_fields = ['user_med_map_id', 'reminder_time', 'notification_type', 'message']
+            for field in required_fields:
+                if field not in data:
+                    return {
+                        "error": f"'{field}' is a required field.",
+                        "code": "MISSING_FIELD"
+                    }, 400
 
-# Delete a reminder
-@sc.route('/delete-medicine-reminder')
-class DeleteMedicineReminder(Resource):
-    @jwt_required()
-    @sc.doc(params={
-        'id': 'ID of the reminder to delete'
-    })
-    def delete(self):
-        """Delete a reminder via query parameter"""
-        reminder_id = request.args.get('id', type=int)
-        if not reminder_id:
-            return {"error": "Reminder ID is required in query"}, 400
+            # Update reminder fields
+            reminder.user_med_map_id = data['user_med_map_id']
+            reminder.reminder_time = data['reminder_time']
+            reminder.notification_type = data['notification_type']
+            reminder.message = data['message']
+            reminder.active = data.get('active', True)
 
-        reminder = MedicineReminder.query.get(reminder_id)
-        if not reminder:
-            return {"error": "Reminder not found"}, 404
+            db.session.commit()
 
-        db.session.delete(reminder)
-        db.session.commit()
-        return {"message": "Reminder deleted"}, 200
+            return {
+                "message": "Reminder updated successfully.",
+                "id": reminder.id
+            }, 200
 
-# List all reminders for a specific user_med_map_id
+        except SQLAlchemyError as e:
+            db.session.rollback()  # Ensure DB state is clean on failure
+            return {
+                "error": "Database error occurred while updating the reminder.",
+                "code": "DB_ERROR",
+                "details": str(e)
+            }, 500
+
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "code": "INTERNAL_SERVER_ERROR",
+                "details": str(e)
+            }, 500
+
 @sc.route('/list-medicine-reminder')
 class ListReminders(Resource):
     @jwt_required()
-    @sc.doc(params={
-        'user_med_map_id': 'ID of the User-Medicine mapping to fetch reminders for'
-    }, description='List all reminders for a specific user_med_map_id')
+    @sc.doc(
+        params={
+            'user_med_map_id': 'ID of the User-Medicine mapping to fetch reminders for'
+        },
+        description='List all reminders for a specific user_med_map_id'
+    )
     def get(self):
         """List all reminders for a specific user_med_map_id"""
-        user_med_map_id = request.args.get('user_med_map_id', type=int)
-        if not user_med_map_id:
-            return {"error": "user_med_map_id is required as a query parameter"}, 400
+        try:
+            user_med_map_id = request.args.get('user_med_map_id', type=int)
 
-        reminders = MedicineReminder.query.filter_by(user_med_map_id=user_med_map_id).all()
-        return [{
-            "id": r.id,
-            "reminder_time": r.reminder_time,
-            "notification_type": r.notification_type,
-            "message": r.message,
-            "active": r.active
-        } for r in reminders], 200
+            if not user_med_map_id:
+                return {
+                    "error": "Query parameter 'user_med_map_id' is required and must be an integer.",
+                    "code": "MISSING_USER_MED_MAP_ID"
+                }, 400
+
+            reminders = MedicineReminder.query.filter_by(user_med_map_id=user_med_map_id).all()
+
+            if not reminders:
+                return {
+                    "error": f"No reminders found for user_med_map_id {user_med_map_id}.",
+                    "code": "REMINDERS_NOT_FOUND"
+                }, 404
+
+            return [{
+                "id": r.id,
+                "reminder_time": str(r.reminder_time),
+                "notification_type": r.notification_type,
+                "message": r.message,
+                "active": r.active
+            } for r in reminders], 200
+
+        except SQLAlchemyError as e:
+            return {
+                "error": "Database error occurred while fetching reminders.",
+                "code": "DB_ERROR",
+                "details": str(e)
+            }, 500
+
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "code": "INTERNAL_SERVER_ERROR",
+                "details": str(e)
+            }, 500
 
 #<------------------------------------------------------------------------------------------------------------------->
 
 
 # <------------------------------------Medicine Status for today------------------------------------>
 
-# Send reminder for a specific medicine
 @sc.route('/send-reminder')
 class SendMedicineReminder(Resource):
     @jwt_required()
     @sc.expect(send_reminder_model, validate=True)
     def post(self):
         """Send active reminders for a specific medicine"""
-        data = request.get_json()
-        user_id = data.get('user_id')
-        medicine_id = data.get('medicine_id')
+        try:
+            data = request.get_json()
+            user_id = data.get('user_id')
+            medicine_id = data.get('medicine_id')
 
-        # Validate input
-        if not medicine_id:
-            return {"error": "medicine_id is required in the request body."}, 400
+            # Validate required inputs
+            if not user_id or not medicine_id:
+                return {
+                    "error": "Both 'user_id' and 'medicine_id' are required in the request body.",
+                    "code": "MISSING_REQUIRED_FIELDS"
+                }, 400
 
-        # Check user-med-mapping
-        user_med_map = UserMedMap.query.filter_by(user_id=user_id, medicine_id=medicine_id).first()
-        if not user_med_map:
-            return {"error": "Medicine mapping for the user not found."}, 404
+            # Check if user-med mapping exists
+            user_med_map = UserMedMap.query.filter_by(user_id=user_id, medicine_id=medicine_id).first()
+            if not user_med_map:
+                return {
+                    "error": "Medicine mapping for the user not found.",
+                    "code": "USER_MED_MAPPING_NOT_FOUND"
+                }, 404
 
-        # Fetch active reminders
-        reminders = MedicineReminder.query.filter_by(user_med_map_id=user_med_map.id, active=True).all()
-        if not reminders:
-            return {"message": "No active reminders found for this medicine."}, 200
+            # Fetch active reminders
+            reminders = MedicineReminder.query.filter_by(user_med_map_id=user_med_map.id, active=True).all()
+            if not reminders:
+                return {
+                    "message": "No active reminders found for this medicine.",
+                    "medicine_id": medicine_id,
+                    "user_id": user_id,
+                    "reminders": [],
+                    "code": "NO_ACTIVE_REMINDERS"
+                }, 200
 
-        # Compose notifications
-        medicine_title = user_med_map.medicine.title if user_med_map.medicine else "Unknown Medicine"
-        sent_reminders = []
-        for reminder in reminders:
-            message = reminder.message or f"Reminder to take {medicine_title} at {reminder.reminder_time}"
-            print(f"[{reminder.notification_type.upper()}] To user {user_id}: {message}")
-            sent_reminders.append({
-                "type": reminder.notification_type,
-                "time_slot": reminder.reminder_time,
-                "message": message
-            })
+            # Compose and log/send reminders
+            medicine_title = user_med_map.medicine.title if user_med_map.medicine else "Unknown Medicine"
+            sent_reminders = []
+            for reminder in reminders:
+                message = reminder.message or f"Reminder to take {medicine_title} at {reminder.reminder_time}"
+                # Simulated notification send (e.g. via email/SMS/push)
+                print(f"[{reminder.notification_type.upper()}] To user {user_id}: {message}")
 
-        return {
-            "status": "Reminders sent",
-            "medicine_id": medicine_id,
-            "user_id": user_id,
-            "reminders": sent_reminders
-        }, 200
+                sent_reminders.append({
+                    "type": reminder.notification_type,
+                    "time_slot": str(reminder.reminder_time),
+                    "message": message
+                })
+
+            return {
+                "status": "Reminders sent",
+                "medicine_id": medicine_id,
+                "user_id": user_id,
+                "reminders": sent_reminders
+            }, 200
+
+        except SQLAlchemyError as e:
+            return {
+                "error": "Database error occurred while sending reminders.",
+                "code": "DB_ERROR",
+                "details": str(e)
+            }, 500
+
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "code": "INTERNAL_SERVER_ERROR",
+                "details": str(e)
+            }, 500
 # <-------------------------------------------------------------------------------------------------------------->
 
 # <-------------------------------------SOS--------------------------------------------------------------------->
 
-# Send SOS
 @sc.route('/send-sos')
 class SendSOS(Resource):
     @jwt_required()
-    # @sc.doc(params={
-    #     'caregiver_id': 'Mention the caregiver ID'
-    # })
     def post(self):
         """Send SOS message from a senior to all mapped caregivers"""
-        user_id = get_jwt_identity()
+        try:
+            user_id = get_jwt_identity()
 
-        # Get the senior user
-        senior = User.query.get(user_id)
-        if not senior:
-            return {"error": "User not found."}, 404
+            # Get the calling user
+            senior = User.query.get(user_id)
+            if not senior:
+                return {
+                    "error": "User not found.",
+                    "code": "USER_NOT_FOUND"
+                }, 404
 
-        # Get all caregivers mapped to this senior
-        caregiver_mappings = CaregiverSeniorMap.query.filter_by(senior_id=user_id).all()
-        if not caregiver_mappings:
-            return {"message": "No caregivers mapped to this user."}, 404
+            # Check user role
+            if senior.role != 'senior_citizen':
+                return {
+                    "error": "Only senior citizens can send SOS alerts.",
+                    "code": "FORBIDDEN_ROLE"
+                }, 403
 
-        sos_message = f"SOS Alert! {senior.first_name} {senior.last_name} needs immediate assistance!"
+            # Find all approved caregiver mappings
+            caregiver_mappings = CaregiverSeniorMap.query.filter_by(
+                senior_id=user_id,
+                status='approved'
+            ).all()
 
-        sent_alerts = []
-        for mapping in caregiver_mappings:
-            caregiver = User.query.get(mapping.caregiver_id)
-            if caregiver:
-                # Simulate sending alert (e.g., email, SMS, etc.)
-                print(f"Sending SOS to caregiver {caregiver.username}: {sos_message}")
-                sent_alerts.append({
-                    "caregiver_id": caregiver.id,
-                    "caregiver_name": f"{caregiver.first_name} {caregiver.last_name}",
-                    "message": sos_message
-                })
+            if not caregiver_mappings:
+                return {
+                    "message": "No caregivers mapped to this user.",
+                    "code": "NO_CAREGIVER_FOUND"
+                }, 404
 
-        return {
-            "status": "SOS sent successfully",
-            "alerts_sent": sent_alerts
-        }, 200
+            sos_message = f"SOS Alert! {senior.first_name} {senior.last_name} needs immediate assistance!"
+
+            sent_alerts = []
+            for mapping in caregiver_mappings:
+                caregiver = User.query.get(mapping.caregiver_id)
+                if caregiver:
+                    # Simulate sending alert (e.g. via message gateway)
+                    print(f"Sending SOS to caregiver {caregiver.username}: {sos_message}")
+
+                    sent_alerts.append({
+                        "caregiver_id": caregiver.id,
+                        "caregiver_name": f"{caregiver.first_name} {caregiver.last_name}",
+                        "message": sos_message
+                    })
+
+            return {
+                "status": "SOS sent successfully",
+                "alerts_sent": sent_alerts
+            }, 200
+
+        except SQLAlchemyError as e:
+            return {
+                "error": "Database error occurred while sending SOS.",
+                "code": "DB_ERROR",
+                "details": str(e)
+            }, 500
+
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "code": "INTERNAL_SERVER_ERROR",
+                "details": str(e)
+            }, 500
     
 # <------------------------------------------------------------------------------------------------------------->
 
@@ -800,41 +1091,82 @@ class SendSOS(Resource):
 class AllMedicines(Resource):
     @jwt_required()
     def get(self):
-        """Get all medicines for logged-in user (elderly or caregiver)"""
-        user_id = get_jwt_identity()
-        user = User.query.get(user_id)
+        """Get all medicines for logged-in user (senior or caregiver)"""
+        try:
+            user_id = get_jwt_identity()
+            user = User.query.get(user_id)
 
-        if not user:
-            return {"error": "User not found."}, 404
+            if not user:
+                return {
+                    "error": "User not found.",
+                    "code": "USER_NOT_FOUND"
+                }, 404
 
-        # If user is an elderly, return their medicines
-        if user.role == 'senior':
-            mappings = UserMedMap.query.filter_by(user_id=user_id).all()
+            # Initialize container
+            mappings = []
 
-        # If user is a caregiver, get medicines of all their mapped seniors
-        elif user.role == 'caregiver':
-            senior_ids = db.session.query(CaregiverSeniorMap.senior_id).filter_by(caregiver_id=user_id).all()
-            senior_ids = [sid[0] for sid in senior_ids]
-            mappings = UserMedMap.query.filter(UserMedMap.user_id.in_(senior_ids)).all()
+            if user.role == 'senior':
+                mappings = UserMedMap.query.filter_by(user_id=user_id).all()
 
-        else:
-            return {"error": "User role not permitted to access medicines."}, 403
+            elif user.role == 'caregiver':
+                senior_ids = db.session.query(CaregiverSeniorMap.senior_id).filter_by(
+                    caregiver_id=user_id, status='approved'
+                ).all()
+                senior_ids = [sid[0] for sid in senior_ids]
 
-        # Prepare response
-        result = []
-        for map in mappings:
-            result.append({
-                "medicine_id": map.medicine.id,
-                "title": map.medicine.title,
-                "description": map.medicine.description,
-                "image": map.medicine.image,
-                "dosage": map.dosage,
-                "start_date": map.start_date.isoformat(),
-                "end_date": map.end_date.isoformat(),
-                "assigned_to": map.user.first_name + " " + map.user.last_name
-            })
+                if not senior_ids:
+                    return {
+                        "error": "No senior citizens mapped to this caregiver.",
+                        "code": "NO_SENIORS_ASSIGNED"
+                    }, 404
 
-        return {"medicines": result}, 200
+                mappings = UserMedMap.query.filter(UserMedMap.user_id.in_(senior_ids)).all()
+
+            else:
+                return {
+                    "error": "User role not permitted to access medicines.",
+                    "code": "FORBIDDEN_ROLE"
+                }, 403
+
+            if not mappings:
+                return {
+                    "message": "No medicines found.",
+                    "code": "NO_MEDICINES_FOUND"
+                }, 200
+
+            result = []
+            for map in mappings:
+                med = map.medicine
+                assigned_user = map.user
+
+                result.append({
+                    "medicine_id": med.id if med else None,
+                    "title": med.title if med else "",
+                    "description": med.description if med else "",
+                    "image": med.image if med else "",
+                    "dosage": map.dosage,
+                    "start_date": map.start_date.isoformat() if map.start_date else None,
+                    "end_date": map.end_date.isoformat() if map.end_date else None,
+                    "assigned_to": f"{assigned_user.first_name} {assigned_user.last_name}" if assigned_user else "Unknown"
+                })
+
+            return {
+                "medicines": result
+            }, 200
+
+        except SQLAlchemyError as e:
+            return {
+                "error": "Database error occurred while fetching medicines.",
+                "code": "DB_ERROR",
+                "details": str(e)
+            }, 500
+
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "code": "INTERNAL_SERVER_ERROR",
+                "details": str(e)
+            }, 500
 
 #<------------------------------------------------------------------------------------------------------------->
 
@@ -844,32 +1176,70 @@ class AllMedicines(Resource):
 class ApproveCaregiver(Resource):
     @jwt_required()
     @sc.expect(sc.model('ApproveCaregiver', {
-        'caregiver_id': fields.Integer(required=True),
-        'approve': fields.Boolean(required=True)
+        'caregiver_id': fields.Integer(required=True, description='ID of the caregiver to approve'),
+        'approve': fields.Boolean(required=True, description='True to approve, False to deny')
     }))
-
     def post(self):
-        """Senior approves caregiver request"""
-        data = request.get_json()
-        caregiver_id = data.get('caregiver_id')
-        senior_id = get_jwt_identity()
+        """Senior approves or denies caregiver connection request"""
+        try:
+            data = request.get_json()
+            caregiver_id = data.get('caregiver_id')
+            approve = data.get('approve')
 
-        senior = User.query.get(senior_id)
-        if not senior or senior.role != 'senior_citizen':
+            if caregiver_id is None or approve is None:
+                return {
+                    "error": "'caregiver_id' and 'approve' are required fields.",
+                    "code": "MISSING_FIELDS"
+                }, 400
 
-            return {"error": "Only senior citizens can approve requests."}, 403
+            senior_id = get_jwt_identity()
+            senior = User.query.get(senior_id)
 
-        relation = CaregiverSeniorMap.query.filter_by(caregiver_id=caregiver_id, senior_id=senior_id).first()
-        if not relation:
-            return {"error": "No pending request found from this caregiver."}, 404
+            if not senior or senior.role != 'senior_citizen':
+                return {
+                    "error": "Only senior citizens can approve caregiver requests.",
+                    "code": "FORBIDDEN_ROLE"
+                }, 403
 
-        if relation.status == 'approved':
-            return {"message": "Request already approved."}, 200
+            relation = CaregiverSeniorMap.query.filter_by(
+                caregiver_id=caregiver_id, senior_id=senior_id
+            ).first()
 
-        relation.status = 'approved'
-        db.session.commit()
+            if not relation:
+                return {
+                    "error": "No pending request found from this caregiver.",
+                    "code": "RELATION_NOT_FOUND"
+                }, 404
 
-        return {"message": "Caregiver request approved successfully."}, 200
+            if relation.status == 'approved' and approve:
+                return {
+                    "message": "Caregiver request already approved.",
+                    "code": "ALREADY_APPROVED"
+                }, 200
+
+            relation.status = 'approved' if approve else 'rejected'
+            db.session.commit()
+
+            return {
+                "message": f"Caregiver request {'approved' if approve else 'rejected'} successfully.",
+                "caregiver_id": caregiver_id,
+                "status": relation.status
+            }, 200
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return {
+                "error": "Database error occurred while processing the caregiver approval.",
+                "code": "DB_ERROR",
+                "details": str(e)
+            }, 500
+
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "code": "INTERNAL_SERVER_ERROR",
+                "details": str(e)
+            }, 500
 
 # <------------------------------------------------------------------------------------------------------------->
 
@@ -879,42 +1249,81 @@ class ApproveCaregiver(Resource):
 class RequestSenior(Resource):
     @jwt_required()
     @sc.expect(sc.model('RequestSenior', {
-        'senior_id': fields.Integer(required=True)
+        'senior_id': fields.Integer(required=True, description="ID of the senior citizen to request")
     }), validate=True)
     def post(self):
-        """Caregiver sends request to senior citizen"""
-        data = request.get_json()
-        senior_id = data.get('senior_id')
-        caregiver_id = get_jwt_identity()
+        """Caregiver sends a request to a senior citizen"""
+        try:
+            data = request.get_json()
+            senior_id = data.get('senior_id')
+            caregiver_id = get_jwt_identity()
 
-        caregiver = User.query.get(caregiver_id)
-        if not caregiver or caregiver.role != 'care_giver':
-            return {"error": "Only caregivers can send requests."}, 403
+            caregiver = User.query.get(caregiver_id)
+            if not caregiver or caregiver.role != 'care_giver':
+                return {
+                    "error": "Only caregivers can send requests.",
+                    "code": "FORBIDDEN_ROLE"
+                }, 403
 
-        senior = User.query.get(senior_id)
-        if not senior or senior.role != 'senior_citizen':
-            return {"error": "Target user is not a senior citizen."}, 404
+            senior = User.query.get(senior_id)
+            if not senior or senior.role != 'senior_citizen':
+                return {
+                    "error": "Target user is not a valid senior citizen.",
+                    "code": "INVALID_SENIOR"
+                }, 404
 
-        # Check if a request already exists
-        relation = CaregiverSeniorMap.query.filter_by(caregiver_id=caregiver_id, senior_id=senior_id).first()
-        if relation:
-            if relation.status == 'pending':
-                return {"message": "Request already sent and pending approval."}, 200
-            elif relation.status == 'approved':
-                return {"message": "You are already approved as a caregiver for this senior."}, 200
-            elif relation.status == 'rejected':
-                return {"message": "Your previous request was rejected."}, 200
+            # Check for existing caregiver-senior relationship
+            relation = CaregiverSeniorMap.query.filter_by(
+                caregiver_id=caregiver_id,
+                senior_id=senior_id
+            ).first()
 
-        # Create new request
-        new_relation = CaregiverSeniorMap(
-            caregiver_id=caregiver_id,
-            senior_id=senior_id,
-            status='pending'
-        )
-        db.session.add(new_relation)
-        db.session.commit()
+            if relation:
+                if relation.status == 'pending':
+                    return {
+                        "message": "Request already sent and pending approval.",
+                        "code": "REQUEST_PENDING"
+                    }, 200
+                elif relation.status == 'approved':
+                    return {
+                        "message": "You are already approved as a caregiver for this senior.",
+                        "code": "ALREADY_APPROVED"
+                    }, 200
+                elif relation.status == 'rejected':
+                    return {
+                        "message": "Your previous request was rejected.",
+                        "code": "REQUEST_REJECTED"
+                    }, 200
 
-        return {"message": "Request sent to senior citizen successfully."}, 201
+            # Create new caregiver-senior relationship
+            new_relation = CaregiverSeniorMap(
+                caregiver_id=caregiver_id,
+                senior_id=senior_id,
+                status='pending'
+            )
+            db.session.add(new_relation)
+            db.session.commit()
+
+            return {
+                "message": "Request sent to senior citizen successfully.",
+                "senior_id": senior_id,
+                "status": "pending"
+            }, 201
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return {
+                "error": "Database error occurred while creating request.",
+                "code": "DB_ERROR",
+                "details": str(e)
+            }, 500
+
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "code": "INTERNAL_SERVER_ERROR",
+                "details": str(e)
+            }, 500
     
 
 # <-------------------------------------Admin approval for new medicines------------------------------------>
@@ -928,39 +1337,67 @@ class MedicineApproval(Resource):
     }), validate=True)
     def post(self):
         """Admin approves or rejects a medicine"""
-        user_id = get_jwt_identity()
-        admin = User.query.get(user_id)
+        try:
+            user_id = get_jwt_identity()
+            admin = User.query.get(user_id)
 
-        if not admin or admin.role != 'admin':
-            return {"error": "Only admins can perform this action."}, 403
+            if not admin or admin.role != 'admin':
+                return {
+                    "error": "Only admins can perform this action.",
+                    "code": "FORBIDDEN_ROLE"
+                }, 403
 
-        data = request.get_json()
-        medicine_id = data.get('medicine_id')
-        approve = data.get('approve')
+            data = request.get_json()
+            medicine_id = data.get('medicine_id')
+            approve = data.get('approve')
 
-        medicine = Medicine.query.get(medicine_id)
-        if not medicine:
-            return {"error": "Medicine not found."}, 404
-        
-        if (medicine.status == "approved"):
-            return {"error": "Medicine is already approved."}, 400
-        elif (medicine.status == "rejected"):
-            return {"error": "Medicine is already rejected."}, 400
+            medicine = Medicine.query.get(medicine_id)
+            if not medicine:
+                return {
+                    "error": "Medicine not found.",
+                    "code": "MEDICINE_NOT_FOUND"
+                }, 404
 
-        medicine.is_approved = approve
+            # Handle already final statuses
+            if medicine.status == 'approved' and approve:
+                return {
+                    "error": "Medicine is already approved.",
+                    "code": "ALREADY_APPROVED"
+                }, 400
 
-        status_msg = "approved" if approve else "rejected"
-        
-        if status_msg == "approved":
-            # Change the status of the medicine to 'approved' in Medicine table
-            medicine.status = 'approved'
-        else:
-            # Change the status of the medicine to 'rejected' in Medicine table
-            medicine.status = 'rejected'
+            if medicine.status == 'rejected' and not approve:
+                return {
+                    "error": "Medicine is already rejected.",
+                    "code": "ALREADY_REJECTED"
+                }, 400
 
-        db.session.commit()
-        
-        return {"message": f"Medicine has been {status_msg}."}, 200
+            # Apply approval/rejection
+            medicine.status = 'approved' if approve else 'rejected'
+            medicine.is_approved = approve
+
+            db.session.commit()
+
+            return {
+                "message": f"Medicine has been {medicine.status}.",
+                "medicine_id": medicine.id,
+                "status": medicine.status,
+                "approved": medicine.is_approved
+            }, 200
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return {
+                "error": "Database error occurred while updating medicine approval.",
+                "code": "DB_ERROR",
+                "details": str(e)
+            }, 500
+
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "code": "INTERNAL_SERVER_ERROR",
+                "details": str(e)
+            }, 500
 
 # <------------------------------------------------------------------------------------------------------------->
 
@@ -971,21 +1408,51 @@ class PendingMedicines(Resource):
     @jwt_required()
     def get(self):
         """List all unapproved medicines (admin only)"""
-        user_id = get_jwt_identity()
-        admin = User.query.get(user_id)
+        try:
+            user_id = get_jwt_identity()
+            admin = User.query.get(user_id)
 
-        if not admin or admin.role != 'admin':
-            return {"error": "Only admins can view pending medicines."}, 403
+            if not admin or admin.role != 'admin':
+                return {
+                    "error": "Only admins can view pending medicines.",
+                    "code": "FORBIDDEN_ROLE"
+                }, 403
 
-        pending = Medicine.query.filter_by(status="pending").all()
+            pending = Medicine.query.filter_by(status="pending").all()
 
-        return [{
-            "id": m.id,
-            "title": m.title,
-            "description": m.description,
-            "user_id": m.user_id,
-            "created_at": m.created_at.isoformat()
-        } for m in pending], 200
+            if not pending:
+                return {
+                    "message": "No pending medicines found.",
+                    "medicines": [],
+                    "code": "NO_PENDING_MEDICINES"
+                }, 200
+
+            result = [{
+                "id": m.id,
+                "title": m.title,
+                "description": m.description,
+                "user_id": m.user_id,
+                "created_at": m.created_at.isoformat() if m.created_at else None
+            } for m in pending]
+
+            return {
+                "pending_medicines": result,
+                "count": len(result)
+            }, 200
+
+        except SQLAlchemyError as e:
+            return {
+                "error": "A database error occurred while fetching pending medicines.",
+                "code": "DB_ERROR",
+                "details": str(e)
+            }, 500
+
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "code": "INTERNAL_SERVER_ERROR",
+                "details": str(e)
+            }, 500
 
 # <-------------------------------------List All Rejected Medicines------------------------------------>
 @sc.route('/admin/medicine/rejected')
@@ -993,15 +1460,50 @@ class RejectedMedicines(Resource):
     @jwt_required()
     def get(self):
         """List all rejected medicines (admin only)"""
-        user_role = current_user.role
-        if user_role != 'admin':
-            return {"error": "Only admins can view rejected medicines."}, 403
-        rejected = Medicine.query.filter_by(status="rejected").all()
-        return {"rejected_medicines": [{
-            "id": m.id,
-            "title": m.title,
-            "description": m.description
-        } for m in rejected]}
+        try:
+            user_role = current_user.role
+
+            if user_role != 'admin':
+                return {
+                    "error": "Only admins can view rejected medicines.",
+                    "code": "FORBIDDEN_ROLE"
+                }, 403
+
+            rejected = Medicine.query.filter_by(status="rejected").all()
+
+            if not rejected:
+                return {
+                    "message": "No rejected medicines found.",
+                    "rejected_medicines": [],
+                    "code": "NO_REJECTED_MEDICINES"
+                }, 200
+
+            result = [{
+                "id": m.id,
+                "title": m.title,
+                "description": m.description,
+                "user_id": m.user_id,
+                "created_at": m.created_at.isoformat() if m.created_at else None
+            } for m in rejected]
+
+            return {
+                "rejected_medicines": result,
+                "count": len(result)
+            }, 200
+
+        except SQLAlchemyError as e:
+            return {
+                "error": "Database error occurred while fetching rejected medicines.",
+                "code": "DB_ERROR",
+                "details": str(e)
+            }, 500
+
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "code": "INTERNAL_SERVER_ERROR",
+                "details": str(e)
+            }, 500
 
  # <------------------------------------------------------------------------------------------------------------->
 
@@ -1013,60 +1515,96 @@ class UpcomingMedications(Resource):
     @jwt_required()
     def get(self):
         """Get upcoming medications before scheduled times for the logged-in senior or approved seniors for caregiver"""
-        user = current_user
-        now = datetime.now(ZoneInfo("Asia/Kolkata"))
-        current_hour = now.hour
-        today = now.date()
+        try:
+            user = current_user
+            now = datetime.now(ZoneInfo("Asia/Kolkata"))
+            current_hour = now.hour
+            today = now.date()
 
-        # Determine current slot
-        slots = []
+            # Determine which slots should be shown
+            slots = []
+            if 4 <= current_hour < 10:
+                slots.extend(['breakfast_before', 'breakfast_after'])
+            if 10 <= current_hour < 15:
+                slots.extend(['lunch_before', 'lunch_after'])
+            if 16 <= current_hour < 23:
+                slots.extend(['dinner_before', 'dinner_after'])
 
-        if 4 <= current_hour < 10:
-            slots.extend(['breakfast_before', 'breakfast_after'])
-        if 10 <= current_hour < 15:
-            slots.extend(['lunch_before', 'lunch_after'])
-        if 16 <= current_hour < 23:
-            slots.extend(['dinner_before', 'dinner_after'])
+            if not slots:
+                return {
+                    "message": "No upcoming medications for the current time window.",
+                    "upcoming_medications": [],
+                    "code": "NO_ACTIVE_TIME_SLOT"
+                }, 200
 
-        if not slots:
-            return {"upcoming medications": []}, 200
+            result = []
 
-        result = []
+            def get_meds_for_user(user_id):
+                return UserMedMap.query.join(Medicine).filter(
+                    UserMedMap.user_id == user_id,
+                    UserMedMap.start_date <= today,
+                    UserMedMap.end_date >= today
+                ).all()
 
-        def get_meds_for_user(user_id):
-            return UserMedMap.query.join(Medicine).filter(
-                UserMedMap.user_id == user_id,
-                UserMedMap.start_date <= today,
-                UserMedMap.end_date >= today
-            ).all()
+            if user.role == 'senior_citizen':
+                meds = get_meds_for_user(user.id)
+                result = filter_meds_by_time(meds, slots)
 
-        if user.role == 'senior_citizen':
-            meds = get_meds_for_user(user.id)
-            result = filter_meds_by_time(meds, slots)
+            elif user.role == 'care_giver':
+                approved_seniors = CaregiverSeniorMap.query.filter_by(
+                    caregiver_id=user.id,
+                    status="approved"
+                ).with_entities(CaregiverSeniorMap.senior_id).all()
 
-        elif user.role == 'care_giver':
-            approved_seniors = CaregiverSeniorMap.query.filter_by(caregiver_id=user.id).with_entities(
-                CaregiverSeniorMap.senior_id
-            ).all()
-            senior_ids = [s[0] for s in approved_seniors]
-            for sid in senior_ids:
-                meds = get_meds_for_user(sid)
-                result.extend(filter_meds_by_time(meds, slots, sid))
+                senior_ids = [s[0] for s in approved_seniors]
 
-        else:
-            return {"error": "Unauthorized role"}, 403
+                if not senior_ids:
+                    return {
+                        "message": "No senior citizens mapped to this caregiver.",
+                        "code": "NO_SENIORS_ASSIGNED",
+                        "upcoming_medications": []
+                    }, 200
 
-        if (not result):
-            return {"message": "No medicine found"}, 404
-        return {"upcoming_medications": result}, 200
+                for sid in senior_ids:
+                    meds = get_meds_for_user(sid)
+                    result.extend(filter_meds_by_time(meds, slots, sid))
 
+            else:
+                return {
+                    "error": "You are not authorized to access this resource.",
+                    "code": "UNAUTHORIZED_ROLE"
+                }, 403
 
+            if not result:
+                return {
+                    "message": "No upcoming medications found.",
+                    "code": "NO_UPCOMING_MEDICATIONS"
+                }, 404
+
+            return {
+                "upcoming_medications": result,
+                "count": len(result)
+            }, 200
+
+        except SQLAlchemyError as e:
+            return {
+                "error": "A database error occurred while fetching upcoming medications.",
+                "code": "DB_ERROR",
+                "details": str(e)
+            }, 500
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "code": "INTERNAL_SERVER_ERROR",
+                "details": str(e)
+            }, 500
+        
 def filter_meds_by_time(meds, valid_slots, user_id=None):
     """Filter medicine slots by upcoming 3-hour window"""
     upcoming = []
     for med in meds:
         for slot in valid_slots:
-            if getattr(med, slot):
+            if getattr(med, slot, False):  # Defensive valid attribute check
                 upcoming.append({
                     "user_id": user_id,
                     "medicine_id": med.medicine_id,
@@ -1078,7 +1616,6 @@ def filter_meds_by_time(meds, valid_slots, user_id=None):
                 })
     return upcoming
 
-
 # <-------------------------------------Today's medication for Senior Citizen------------------------------------>
 
 @sc.route('/todays-medications')
@@ -1086,41 +1623,82 @@ class TodaysMedications(Resource):
     @jwt_required()
     def get(self):
         """Get today's medications for the logged-in senior citizen"""
-        user_id = current_user.id
-        user = User.query.get(user_id)
-        if not user or user.role != 'senior_citizen':
-            return {"error": "Only senior citizens can access this endpoint."}, 403
+        try:
+            user_id = current_user.id
+            user = User.query.get(user_id)
 
-        today = datetime.utcnow().date()
-        # Get all medicine assignments for this user that are active today
-        assignments = UserMedMap.query.filter(
-            UserMedMap.user_id == user_id,
-            UserMedMap.start_date <= today,
-            UserMedMap.end_date >= today
-        ).all()
+            if not user or user.role != 'senior_citizen':
+                return {
+                    "error": "Only senior citizens can access this endpoint.",
+                    "code": "FORBIDDEN_ROLE"
+                }, 403
 
-        result = []
-        for assign in assignments:
-            med = assign.medicine
-            # For each slot, check if it's set to True and add to the result
-            slots = [
-                ("Before Breakfast", assign.breakfast_before),
-                ("After Breakfast", assign.breakfast_after),
-                ("Before Lunch", assign.lunch_before),
-                ("After Lunch", assign.lunch_after),
-                ("Before Dinner", assign.dinner_before),
-                ("After Dinner", assign.dinner_after)
-            ]
-            for slot_name, is_active in slots:
-                if is_active:
-                    result.append({
-                        "medicine_name": med.title,
-                        "dosage": assign.dosage,
-                        "time": slot_name
-                    })
-        return {"date": today.isoformat(), "medications": result}, 200
+            today = datetime.utcnow().date()
 
-# <------------------------------------------------------------------------------------------------------------->
+            # Query active medicine assignments for today
+            assignments = UserMedMap.query.filter(
+                UserMedMap.user_id == user_id,
+                UserMedMap.start_date <= today,
+                UserMedMap.end_date >= today
+            ).all()
+
+            if not assignments:
+                return {
+                    "message": "No medications scheduled for today.",
+                    "medications": [],
+                    "code": "NO_TODAYS_MEDICINES"
+                }, 404
+
+            result = []
+            for assign in assignments:
+                med = assign.medicine
+                if not med:
+                    continue # Defensive safety for broken assignment
+
+                slots = [
+                    ("Before Breakfast", assign.breakfast_before),
+                    ("After Breakfast", assign.breakfast_after),
+                    ("Before Lunch", assign.lunch_before),
+                    ("After Lunch", assign.lunch_after),
+                    ("Before Dinner", assign.dinner_before),
+                    ("After Dinner", assign.dinner_after)
+                ]
+
+                for slot_name, is_active in slots:
+                    if is_active:
+                        result.append({
+                            "medicine_name": med.title,
+                            "dosage": assign.dosage,
+                            "time": slot_name
+                        })
+
+            if not result:
+                return {
+                    "message": "No time slots scheduled for today’s medications.",
+                    "code": "NO_ACTIVE_SLOTS",
+                    "medications": []
+                }, 200
+
+            return {
+                "date": today.isoformat(),
+                "medications": result,
+                "count": len(result)
+            }, 200
+
+        except SQLAlchemyError as e:
+            return {
+                "error": "Database error while fetching today’s medications.",
+                "code": "DB_ERROR",
+                "details": str(e)
+            }, 500
+
+        except Exception as e:
+            return {
+                "error": "An unexpected error occurred.",
+                "code": "INTERNAL_SERVER_ERROR",
+                "details": str(e)
+            }, 500
+
 # <------------------------------------------------------------------------------------------------------------->
 
 # <-------------------------------------Marking Medicines as taken------------------------------------>
