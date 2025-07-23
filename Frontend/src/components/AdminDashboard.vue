@@ -177,10 +177,11 @@ async function approveRequest(medicineId, index) {
 // ❌ Reject
 async function rejectRequest(medicineId, index) {
   try {
-    await apiService.post('/sc/admin/medicine/reject', {
-      medicine_id: medicineId,
-      approve: false
+    await apiService.post('/sc/admin/medicine/approval', {
+      medicine_id:medicineId,
+      approve: false,
     })
+
     triggerToast(`Medicine rejected.`)
     requests.value.splice(index, 1)
   } catch (err) {

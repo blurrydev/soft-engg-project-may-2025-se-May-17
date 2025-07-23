@@ -47,7 +47,7 @@ user_update_model = sc.model('UserUpdate', {
 create_medicine_model = sc.model('CreateMedicine', {
     'title': fields.String(required=True),
     'description': fields.String(required=True),
-    'image': fields.String(required=True),
+    'image': fields.String(required=False),
 })
 
 assign_medicine_model = sc.model('AssignMedicine', {
@@ -180,6 +180,7 @@ class CreateMedicine(Resource):
         """Create new medicine entry"""
         data = request.get_json()
         user_id = get_jwt_identity()
+        user = User.query.get(user_id)
 
         medicine = Medicine(
             title=data['title'],
@@ -187,6 +188,11 @@ class CreateMedicine(Resource):
             user_id=user_id,
             image=data.get('image')
         )
+
+        if (user.role == "admin"):
+            medicine.status = "approved"
+        else:
+            medicine.status = "pending"
 
         try:
             db.session.add(medicine)
@@ -200,7 +206,7 @@ class CreateMedicine(Resource):
         return {}, 200 
         
 #Get all medicines
-@sc.route('/all-medicines')
+@sc.route('/all-medicines', methods=["GET", "OPTIONS"])
 class AllMedicineNames(Resource):
     def get(self):
         """Get all medicine names"""
@@ -216,9 +222,11 @@ class AllMedicineNames(Resource):
             for med in medicines
         ]
         return {"medicines": result}, 200
+    def options(self):
+        return {}, 200
 
 #Edit medicine
-@sc.route('/edit-medicine/<int:medicine_id>')
+@sc.route('/edit-medicine/<int:medicine_id>', methods=["PUT", "OPTIONS"])
 class EditMedicine(Resource):
     @jwt_required()
     @sc.expect(create_medicine_model, validate=True)
@@ -249,7 +257,7 @@ class EditMedicine(Resource):
             return {'message': 'Failed to update medicine', 'error': str(e)}, 500
 
 #Delete medicine
-@sc.route('/delete-medicine/<int:medicine_id>')
+@sc.route('/delete-medicine/<int:medicine_id>', methods=["DELETE", "OPTIONS"])
 class DeleteMedicine(Resource):
     @jwt_required()
     def delete(self, medicine_id):
@@ -272,6 +280,8 @@ class DeleteMedicine(Resource):
         except Exception as e:
             db.session.rollback()
             return {'message': 'Failed to delete medicine', 'error': str(e)}, 500
+    def options(self):
+        return {}, 200
 
 #<---------------------------------------------------------------------------------------------------------------->
 
@@ -1336,7 +1346,7 @@ class RequestSenior(Resource):
 
 # <-------------------------------------Admin approval for new medicines------------------------------------>
 
-@sc.route('/admin/medicine/approval')
+@sc.route('/admin/medicine/approval', methods=["POST", "OPTIONS"])
 class MedicineApproval(Resource):
     @jwt_required()
     @sc.expect(sc.model('MedicineApproval', {
@@ -1406,6 +1416,8 @@ class MedicineApproval(Resource):
                 "code": "INTERNAL_SERVER_ERROR",
                 "details": str(e)
             }, 500
+    def options(self):
+        return {}, 200
 
 # <------------------------------------------------------------------------------------------------------------->
 
@@ -1419,7 +1431,6 @@ class PendingMedicines(Resource):
         try:
             user_id = get_jwt_identity()
             admin = User.query.get(user_id)
-            print("reached till here")
 
             if not admin or admin.role != 'admin':
                 return {
@@ -1443,8 +1454,6 @@ class PendingMedicines(Resource):
                 "user_id": m.user_id,
                 "created_at": m.created_at.isoformat() if m.created_at else None
             } for m in pending]
-
-            print("medicines", result)
 
             return {
                 "medicines": result,   # ✅ uniform

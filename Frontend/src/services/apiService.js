@@ -3,11 +3,11 @@ import { emitter } from "@/eventBus";
 
 const apiService = axios.create({
   baseURL: "http://127.0.0.1:5000",
-  // headers: {
-  //   "Access-Control-Allow-Origin": "*",
-  //   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  //   "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  // },
+  headers: {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  },
 });
 
 export async function verifyToken() {
