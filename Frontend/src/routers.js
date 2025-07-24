@@ -11,8 +11,14 @@ import SeniorCitizenDashboard from "./components/SeniorCitizenDashboard.vue";
 import AdminDashboard from "./components/AdminDashboard.vue";
 import UserProfile from "./components/UserProfile.vue";
 import StatsPage from "./components/StatsPage.vue";
+import LandingPage from './components/LandingPage.vue';
 const routes = [
   // --- Public Routes ---
+  {
+        name: 'LandingPage',
+        component: LandingPage,
+        path: '/',
+    },
   {
     name: "Login",
     component: Login,
