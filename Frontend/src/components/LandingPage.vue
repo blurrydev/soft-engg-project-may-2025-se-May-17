@@ -142,4 +142,10 @@
   justify-content: center;
   flex-direction: column;
 }
+  h2.fw-bold {
+  color: black !important;
+}
+p.lead{
+  color:black;
+}
 </style>
