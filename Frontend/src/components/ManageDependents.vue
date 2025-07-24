@@ -88,7 +88,7 @@ import apiService from '@/services/apiService';
         </div>
         <div class="modal-actions">
           <button class="modal-btn-cancel" @click="closeAddModal">Cancel</button>
-          <button class="modal-btn-confirm" @click="handleAddDependent" :disabled="!selectedNewDependent">Add Dependent</button>
+          <button class="modal-btn-confirm" @click="handleAddDependent" :disabled="!selectedNewDependent">Request Dependent</button>
         </div>
       </div>
     </div>
@@ -152,7 +152,7 @@ async function fetchDependents() {
 
 async function apiAddDependent(userToAdd) {
   try {
-    const res = await apiService.post('/sc/add-dependent', {
+    const res = await apiService.post('/sc/request-senior', {
       senior_id: userToAdd.id,
     });
     
@@ -163,7 +163,6 @@ async function apiAddDependent(userToAdd) {
         message: data.message || 'Failed to add dependent.'
       };
     }
-
     console.log('✅ Dependent added successfully:', data.dependent);
     return {
       success: true,
@@ -258,7 +257,6 @@ function handleSearch() {
 function selectUser(user) {
   selectedNewDependent.value = user;
 }
-
 async function handleAddDependent() {
   if (!selectedNewDependent.value) return;
   const response = await apiAddDependent(selectedNewDependent.value);
@@ -267,6 +265,7 @@ async function handleAddDependent() {
     await fetchDependents();
   } else {
     alert(response.message || 'Failed to add dependent.');
+    closeAddModal();
   }
 }
 </script>

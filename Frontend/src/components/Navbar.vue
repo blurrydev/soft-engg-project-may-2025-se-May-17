@@ -21,6 +21,13 @@
           </a>
         </div>
         <div class="navbar-nav ml-auto" v-if='role'>
+          <!-- Notification Bell Icon -->
+          <div v-if="role === 'senior_citizen'" class="nav-item position-relative mr-3" @click="toggleModal">
+            <i class="fa fa-bell text-white" style="font-size: 24px; cursor: pointer;"></i>
+            <span v-if="notificationCount > 0" class="badge badge-danger badge-pill notification-badge">
+              {{ notificationCount }}
+            </span>
+          </div>
           <div class="nav-item dropdown-container">
             <a class="nav-link profile-icon-link" href="#">
               <i class="fa fa-user-circle"></i>
@@ -46,19 +53,43 @@
         </div>
       </div>
     </nav>
-  </div>
+    <NotificationModal
+        :show="showModal"
+        @close="showModal = false"
+        @updated="getNotificationCount"
+      />
+    </div>
 </template>
 
 
 <script setup >
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import NotificationModal from "@/components/NotificationModal.vue"; 
+import apiService from '@/services/apiService';
 const role = ref(null)
 const router = useRouter()
 //const route = useRoute()
+const showModal = ref(false)
+const notificationCount = ref(0)
 onMounted(() => {
   role.value = sessionStorage.getItem('role')
+  if (role.value === "senior_citizen") {
+    getNotificationCount()
+  }
 })
+function toggleModal() {
+  showModal.value = true
+}
+
+async function getNotificationCount() {
+  try {
+    const res = await apiService.get("/sc/pending-caregiver-requests")
+    notificationCount.value = res.data?.requests?.length || 0
+  } catch (err) {
+    console.error("Error fetching notifications:", err)
+  }
+}
 function logout() {
     sessionStorage.clear();
     router.push('/login');
@@ -156,4 +187,13 @@ function memberDetails() {
   color: #d9534f !important;
   font-weight: bold !important;
 }
+.notification-badge {
+  position: absolute;
+  top: 0;
+  right: -6px;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 50%;
+}
+
 </style>

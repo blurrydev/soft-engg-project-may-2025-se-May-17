@@ -23,18 +23,20 @@
 
         <div v-if="searchResults.length > 0" class="search-results mt-3">
           <p class="fw-semibold mb-2">Existing Medicines:</p>
-          <ul class="list-group mb-2">
-            <li
-              v-for="(med, index) in searchResults"
-              :key="index"
-              class="list-group-item py-2 px-3 search-result-item"
-            >
-              <div style="background-color: #fffde7; width: 100%">
-                {{ med.title }}
-              </div>
-            </li>
-          </ul>
+
+          <div class="search-scroll-wrapper">
+            <ul class="list-group mb-2">
+              <li
+                v-for="(med, index) in searchResults"
+                :key="index"
+                class="list-group-item py-2 px-3 search-result-item"
+              >
+                <div>{{ med.title }}</div>
+              </li>
+            </ul>
+          </div>
         </div>
+
 
         <div v-else-if="searchQuery && !isSearching" class="search-results mt-3">
           <p class="text-muted fst-italic"><b>No medicines found in the database.</b></p>
@@ -402,4 +404,23 @@ watch(searchQuery, handleSearch)
   justify-content: flex-start;
   flex-wrap: nowrap; /* prevent wrapping */
 }
+.search-scroll-wrapper {
+  max-height: 150px; /* Adjust height as needed */
+  overflow-y: auto;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  background-color: #fff;
+  padding-right: 4px; /* So scrollbar doesn't overlap text */
+}
+
+/* Optional: better scroll behavior */
+.search-scroll-wrapper::-webkit-scrollbar {
+  width: 6px;
+}
+
+.search-scroll-wrapper::-webkit-scrollbar-thumb {
+  background-color: #c1c1c1;
+  border-radius: 4px;
+}
+
 </style>

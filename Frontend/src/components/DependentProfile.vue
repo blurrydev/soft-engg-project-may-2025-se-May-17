@@ -148,18 +148,44 @@ async function deleteMedicationMapping(medId) {
   }
 }
 
-async function addMedicationToDependent(dependentId, payload) {
+async function addMedicationToDependent(userId, payload) {
   try {
-    const res = await apiService.post(
-      `/sc/dependent/${dependentId}/add-medication`,
-      payload
-    )
-    return res.data.medication
+    const userRole = sessionStorage.getItem('role');
+    const requestBody = { ...payload };
+    requestBody.dosage = Number(requestBody.dosage);
+    if (userRole === 'care_giver') {
+      requestBody.senior_citizen_id = Number(userId);
+    }
+
+    const res = await apiService.post(`/sc/assign-medicine`, requestBody);
+
+    console.log('🔍 API Response:', res.data);
+
+    // Debug check: log what you're actually testing
+    if (res.data && res.data.medication) {
+      console.log('✅ Medication found:', res.data.medication);
+      return {
+        success: true,
+        medication: res.data.medication,
+        message: res.data.message || 'Medicine assigned successfully.'
+      };
+    } else {
+      console.warn('⚠️ Medication not found in response');
+      return {
+        success: false,
+        message: res.data.message || 'Failed to assign medicine.'
+      };
+    }
+
   } catch (err) {
-    console.error('Error adding medication:', err)
-    return null
+    console.error('❌ Error adding medication:', err.response?.data || err.message);
+    return {
+      success: false,
+      message: err.response?.data?.error || 'Failed to assign medicine.'
+    };
   }
 }
+
 
 function openAddMedModal() {
   showAddMedModal.value = true
@@ -189,12 +215,15 @@ async function handleDeleteConfirmed() {
 }
 
 async function handleAddMedication(payload) {
-  const newMed = await addMedicationToDependent(userId, payload)
-  if (newMed) {
-    medications.value.push(newMed)
-    closeAddMedModal()
+  const response = await addMedicationToDependent(userId, payload);
+
+  if (response.success) {
+    alert(response.message);  // shows: "Medicine assigned and status tracking initialized."
+    closeAddMedModal();
+    console.log('New medication added:', response.medication);  // contains `medicine_id`, `medicineTitle`, etc.
+    medications.value.push(response.medication);
   } else {
-    alert('Failed to add medication.')
+    alert(response.message);
   }
 }
 

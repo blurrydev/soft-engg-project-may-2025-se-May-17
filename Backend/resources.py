@@ -331,6 +331,8 @@ class AssignMedicine(Resource):
             )
             db.session.add(assignment)
             db.session.flush() 
+            m=Medicine.query.filter_by(id=assignment.medicine_id).first()
+            title=m.title
             start_date = assignment.start_date.date()
             end_date = assignment.end_date.date()
             delta = (end_date - start_date).days + 1
@@ -348,7 +350,21 @@ class AssignMedicine(Resource):
                 )
                 db.session.add(status)
             db.session.commit()
-            return {"message": "Medicine assigned and status tracking initialized."}, 201
+            return {"message": "Medicine assigned and status tracking initialized.",
+                    "medication": {
+                    "id": assignment.id,
+                    "medicine_id": assignment.medicine_id,
+                    "medicineTitle":title,
+                    "dosage": assignment.dosage,
+                    "start_date": assignment.start_date.isoformat(),
+                    "end_date": assignment.end_date.isoformat(),
+                    "breakfast_before": assignment.breakfast_before,
+                    "breakfast_after": assignment.breakfast_after,
+                    "lunch_before": assignment.lunch_before,
+                    "lunch_after": assignment.lunch_after,
+                    "dinner_before": assignment.dinner_before,
+                    "dinner_after": assignment.dinner_after
+                }}, 201
         except Exception as e:
             db.session.rollback()
             return {"error": str(e)}, 500
@@ -2379,4 +2395,43 @@ class MyMusic(Resource):
             return {
                 "error": "Failed to load music playlist.",
                 "details": str(e)
+            }, 500
+            
+@sc.route('/pending-caregiver-requests')
+class PendingCaregiverRequests(Resource):
+    @jwt_required()
+    def get(self):
+        """Get all pending caregiver requests for the senior citizen"""
+        try:
+            senior_id = get_jwt_identity()
+            senior = User.query.get(senior_id)
+
+            if not senior or senior.role != 'senior_citizen':
+                return {
+                    "error": "Only senior citizens can view caregiver requests.",
+                    "code": "FORBIDDEN_ROLE"
+                }, 403
+
+            pending_relations = CaregiverSeniorMap.query.filter_by(
+                senior_id=senior_id,
+                status='pending'
+            ).all()
+
+            result = []
+            for rel in pending_relations:
+                caregiver = User.query.get(rel.caregiver_id)
+                if caregiver:
+                    result.append({
+                        "caregiver_id": caregiver.id,
+                        "caregiver_name": f"{caregiver.first_name} {caregiver.last_name}",
+                        "caregiver_username": f"{caregiver.username}"
+                    })
+
+            return {"requests": result}, 200
+
+        except Exception as e:
+            return {
+                "error": "An error occurred while fetching pending requests.",
+                "details": str(e),
+                "code": "INTERNAL_SERVER_ERROR"
             }, 500
