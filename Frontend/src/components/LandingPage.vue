@@ -39,7 +39,10 @@
           provider for a better quality of life for you or your loved one.
         </p>
 
-        <button class="btn btn-primary mt-4 px-4 py-2">GET IN TOUCH</button>
+        <router-link to="/signup" class="btn btn-primary mt-4 px-4 py-2">
+  GET IN TOUCH
+</router-link>
+
       </div>
     </section>
 
