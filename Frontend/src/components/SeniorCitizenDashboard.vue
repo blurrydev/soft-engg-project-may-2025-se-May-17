@@ -10,8 +10,10 @@
         <p class="today-label">Today</p>
         <p class="date">{{ formattedDate }}</p>
       </div>
-
       <div class="greeting-row">
+        <button class="assign-btn" @click="showAddMedicineModal = true">
+  Assign Medicine
+</button>
         <button class="sos-button" @click="sendSOS" :disabled="sosLoading">
           {{ sosLoading ? '...' : 'SOS' }}
         </button>
@@ -35,6 +37,9 @@
           <span class="med-name">{{ nextMedication.medicineName }}</span>
           <span class="med-dosage">{{ nextMedication.dosage }}</span>
           <span class="med-time"><span class="icon clock-icon">⏰</span>{{ nextMedication.time }}</span>
+          <button class="mark-taken-btn" @click="markMedicineTaken(nextMedication.medicineId, getSlot(nextMedication.slot))">
+    Mark as Taken
+  </button>
         </div>
         <div v-else class="upcoming-med-card empty">All medications for today are complete.</div>
 
@@ -75,6 +80,11 @@
         <MusicPlayer />
         <AppCalendar />
       </div>
+      <AddMedicineModal
+  v-if="showAddMedicineModal"
+  @close="showAddMedicineModal = false"
+  @add-medication="handleAddMedication"
+/>
 
       <div v-if="sosMessage" class="sos-alert" @click="sosMessage = ''">{{ sosMessage }}</div>
     </div>
@@ -89,10 +99,10 @@ import Navbar from './Navbar.vue';
 import AppCalendar from './AppCalendar.vue';
 import apiService from '@/services/apiService'
 import MusicPlayer from './MusicPlayer.vue';
-
+import AddMedicineModal from './AddMedicineModal.vue';
 // const route = useRoute();
 
-const userName = ref('User');
+const userName = ref(sessionStorage.getItem('user_name') || 'User');
 const nextMedication = ref(null);
 const daytimeMeds = ref([]);
 const nighttimeMeds = ref([]);
@@ -100,7 +110,7 @@ const loading = ref(true);
 const error = ref(null);
 const sosLoading = ref(false);
 const sosMessage = ref('');
-
+const showAddMedicineModal = ref(false);
 const formattedDate = computed(() =>
   new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -109,6 +119,22 @@ const formattedDate = computed(() =>
     day: 'numeric',
   })
 );
+const slotMap = {
+  "Breakfast before": "breakfast_before",
+  "Breakfast after": "breakfast_after",
+  "Lunch before": "lunch_before",
+  "Lunch after": "lunch_after",
+  "Dinner before": "dinner_before",
+  "Dinner after": "dinner_after"
+};
+
+function getSlot(reminderSlot) {
+  if (!reminderSlot) return null;
+
+  // Adjust the logic here to correctly map the reminderSlot
+  return slotMap[reminderSlot] || slotMap[reminderSlot.charAt(0).toUpperCase() + reminderSlot.slice(1)] || null;
+}
+
 
 async function getUpcomingMedication() {
   try {
@@ -119,19 +145,28 @@ async function getUpcomingMedication() {
       return {
         success: true,
         meds: data.upcoming_medications || [],
-        count: data.count || 0
+        count: data.count || 0,
       };
     } else {
       return {
         success: false,
-        message: data.error || data.message || "Failed to get medications"
+        message: data.error || data.message || "Failed to get medications",
       };
     }
   } catch (err) {
+    // If 404, treat as no meds — not an error
+    if (err.response && err.response.status === 404) {
+      return {
+        success: true,          // Mark as success
+        meds: [],               // Empty meds array
+        count: 0,
+      };
+    }
+
     console.error("🔴 Error fetching upcoming medications:", err);
     return {
       success: false,
-      message: err.message
+      message: err.message,
     };
   }
 }
@@ -143,25 +178,23 @@ async function fetchAllDataForSenior() {
     const response = await getUpcomingMedication();
     if (!response.success) throw new Error(response.message);
 
-    // Hardcode or fetch the user's name from another API if required
-    userName.value = 'You';
-
-    // Set upcoming medications for the day
     nextMedication.value = response.meds[0]
       ? {
+        medicineId: response.meds[0].medicine_id, 
           medicineName: response.meds[0].medicine_title,
           dosage: response.meds[0].dosage,
           time: response.meds[0].reminder_slot,
+          slot: response.meds[0].reminder_slot
         }
       : null;
 
-    // Day/Night split – example logic
     const daySlots = ['Breakfast', 'Lunch'];
     daytimeMeds.value = response.meds.filter(med =>
       daySlots.some(slot => med.reminder_slot && med.reminder_slot.includes(slot))
     );
-    nighttimeMeds.value = response.meds.filter(
-      med => med.reminder_slot && med.reminder_slot.includes('Dinner')
+
+    nighttimeMeds.value = response.meds.filter(med =>
+      med.reminder_slot && med.reminder_slot.includes('Dinner')
     );
   } catch (err) {
     error.value = 'Could not load dashboard data. Please try again later.';
@@ -170,7 +203,76 @@ async function fetchAllDataForSenior() {
   }
 }
 
+async function assignMedicineSchedule(payload) {
+  try {
+    const requestBody = { ...payload };
+    requestBody.dosage = Number(requestBody.dosage);
+    const response = await apiService.post('/sc/assign-medicine', requestBody);
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error('Error assigning medicine schedule:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to assign medicine schedule',
+      validationErrors: error.response?.data?.errors || null,
+    };
+  }
+}
 
+
+async function handleAddMedication(payload) {
+  showAddMedicineModal.value = false;
+
+  const finalPayload = {
+    ...payload,
+     end_date: payload.end_date || payload.start_date,
+  };
+
+  console.log('Payload sent:', finalPayload);
+
+  const result = await assignMedicineSchedule(finalPayload);
+
+  if (result.success) {
+    alert('Medicine assigned successfully.');
+    fetchAllDataForSenior();
+  } else {
+    console.error('Validation errors:', result.validationErrors);
+    alert('Failed to assign medicine: ' + result.error);
+  }
+}
+
+async function markMedicineTaken(medicineId, slot) {
+  console.log("Medicine ID:", medicineId); // Check if the medicineId is correct
+  console.log("Slot:", slot); // Check if the slot is correct
+
+  const validSlots = [
+    "breakfast_before", "breakfast_after",
+    "lunch_before", "lunch_after",
+    "dinner_before", "dinner_after"
+  ];
+
+  if (!medicineId || !slot || !validSlots.includes(slot)) {
+    alert(`Invalid medicine or slot value: ${slot}`);
+    return;
+  }
+
+  try {
+    const res = await apiService.put('/sc/mark-medicine-taken', {
+      medicine_id: medicineId,
+      slot: slot,
+    });
+
+    if (res.status === 200) {
+      alert('Medicine marked as taken.');
+      fetchAllDataForSenior();  // Refresh the data
+    } else {
+      alert('Failed to mark medicine as taken.');
+    }
+  } catch (error) {
+    console.error('Error marking medicine as taken:', error);
+    alert(error.response?.data?.error || 'Error marking medicine as taken.');
+  }
+}
 
 async function sendSOS() {
   sosLoading.value = true
@@ -443,4 +545,33 @@ onMounted(() => {
   border-radius: 15px;
   border: 1px solid #f5c6cb;
 }
+.assign-btn {
+  margin: 1rem 0;
+  background: #6498f8;
+  color: white;
+  font-weight: bold;
+  border: none;
+  border-radius: 50px;
+  padding: 0.7rem 1.6rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.assign-btn:hover {
+  background: #4169e1;
+}
+.mark-taken-btn {
+  margin-left: 1rem;
+  background-color: #28a745;
+  border: none;
+  color: white;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.mark-taken-btn:hover {
+  background-color: #218838;
+}
+
 </style>

@@ -7,8 +7,14 @@
     </div>
 
     <div class="toggle-buttons">
-      <button @click="selectDependent('dep_001')" :class="{ active: selectedDependent === 'dep_001' }">Mom</button>
-      <button @click="selectDependent('dep_002')" :class="{ active: selectedDependent === 'dep_002' }">Dad</button>
+      <button
+        v-for="dep in dependents"
+        :key="dep.id"
+        @click="selectDependent(dep.id)"
+        :class="{ active: selectedDependent === dep.id }"
+      >
+        {{ dep.name }}
+      </button>
     </div>
 
     <div class="weekday-row">
@@ -17,7 +23,7 @@
 
     <div class="calendar-grid">
       <div
-        v-for="(day, index) in calendarData"
+        v-for="(day, index) in visibleCalendarData"
         :key="index"
         :class="['calendar-cell', {
           today: day.medicationData?.isToday,
@@ -27,9 +33,14 @@
       >
         <div class="cell-label">{{ day.label }}</div>
         <div class="cell-data">
-          <span class="taken">✅ {{ day.medicationData?.taken || 0 }}</span>
-          <span class="missed">❌ {{ day.medicationData?.missed || 0 }}</span>
-          <span class="pending">🕒 {{ day.medicationData?.pending || 0 }}</span>
+          <template v-if="day.medicationData">
+            <span class="taken">✅ {{ day.medicationData.taken || 0 }}</span>
+            <span class="missed">❌ {{ day.medicationData.missed || 0 }}</span>
+            <span class="pending">🕒 {{ day.medicationData.pending || 0 }}</span>
+          </template>
+          <template v-else>
+            <span class="future-placeholder">-</span>
+          </template>
         </div>
       </div>
     </div>
@@ -37,14 +48,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import medicationService from '@/services/calendar.js';
+import apiService from '@/services/apiService.js';
 
 const currentDate = new Date();
 const currentMonth = ref(currentDate.getMonth() + 1);
 const currentYear = ref(currentDate.getFullYear());
-const selectedDependent = ref('dep_001');
+const selectedDependent = ref(null);
 const calendarData = ref([]);
+const dependents = ref([]);
 
 const monthNames = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -53,8 +66,37 @@ const monthNames = [
 
 const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+// Add computed property for daysInMonth
+const daysInMonth = computed(() => {
+  return new Date(currentYear.value, currentMonth.value, 0).getDate();
+});
+
+// Add computed property for visible calendar cells
+const visibleCalendarData = computed(() => {
+  return calendarData.value.filter(
+    day => day.label === '' || parseInt(day.label) <= daysInMonth.value
+  );
+});
+
+async function loadDependents() {
+  try {
+    const response = await apiService.get('/sc/my-dependents');
+    // API returns { dependents: [ { id, firstName, lastName, ... } ] }
+    dependents.value = response.data.dependents.map(dep => ({
+      id: dep.id,
+      name: dep.firstName + ' ' + dep.lastName
+    }));
+    if (dependents.value.length > 0 && !selectedDependent.value) {
+      selectedDependent.value = dependents.value[0].id;
+    }
+  } catch (error) {
+    console.error('Failed to load dependents:', error);
+  }
+}
+
 async function loadCalendarData() {
   try {
+    if (!selectedDependent.value) return;
     calendarData.value = await medicationService.generateCalendarData(currentMonth.value, currentYear.value, selectedDependent.value);
   } catch (error) {
     console.error('Failed to load calendar data:', error);
@@ -86,7 +128,13 @@ function selectDependent(depId) {
   loadCalendarData();
 }
 
-onMounted(loadCalendarData);
+onMounted(async () => {
+  const role = sessionStorage.getItem('role');
+  if (role === 'care_giver') {
+    await loadDependents();
+    await loadCalendarData();
+  }
+});
 watch([currentMonth, currentYear, selectedDependent], loadCalendarData);
 </script>
 

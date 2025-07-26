@@ -98,7 +98,7 @@ const route = useRoute();
 
 const upcomingMedications = ref([]);
 const dependentsInfo = ref([]);
-const caregiverName = ref('User');
+const caregiverName = ref(sessionStorage.getItem('user_name') || 'User');
 const loading = ref(true);
 const pokeMessage = ref('');
 const cardColors = ref(['color-yellow', 'color-purple', 'color-blue']);

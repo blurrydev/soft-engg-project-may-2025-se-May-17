@@ -15,19 +15,7 @@
       </button>
 
       <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
-        <ul class="navbar-nav">
-          <li class="nav-item mx-2"><a class="nav-link text-white" href="#">Home</a></li>
-
-         
-
-          <li class="nav-item mx-2">
-            <a class="nav-link text-white" href="#about-section">About</a>
-          </li>
-          <li class="nav-item mx-2">
-            <a class="nav-link text-white" href="#contact-section">Contact</a>
-          </li>
-        </ul>
-
+        <ul class="navbar-nav"></ul>
         <!-- Login/Signup Buttons -->
         <div class="d-flex gap-2 ms-4">
           
@@ -66,7 +54,7 @@
       </div>
     </section>
 
-    <!-- Contact Section -->
+    <!-- Contact Section
     <section id="contact-section" class="info-section bg-white text-dark py-5 px-4">
       <div class="container text-center">
         <h2 class="fw-bold mb-4">Contact Us</h2>
@@ -78,7 +66,7 @@
           <strong>Phone:</strong> +91-8010676679
         </p>
       </div>
-    </section>
+    </section> -->
   </div>
 </template>
 
@@ -142,4 +130,17 @@
   justify-content: center;
   flex-direction: column;
 }
+.landing-wrapper {
+  scroll-behavior: smooth;
+  height: 100vh;
+  overflow: hidden; /* prevent scrolling */
+}
+
+/* Make sure body and html don’t scroll */
+html,
+body {
+  height: 100vh;
+  margin: 0;
+}
+
 </style>

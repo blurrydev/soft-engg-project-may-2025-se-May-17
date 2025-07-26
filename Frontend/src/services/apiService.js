@@ -12,7 +12,7 @@ const apiService = axios.create({
 
 export async function verifyToken() {
   try {
-    const token = sessionStorage.getItem("token");
+    const token = sessionStorage.getItem("accesstoken");
     if (!token) return false;
 
     const response = await axios.get(

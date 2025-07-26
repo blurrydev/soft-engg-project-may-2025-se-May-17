@@ -12,6 +12,7 @@ import AdminDashboard from "./components/AdminDashboard.vue";
 import UserProfile from "./components/UserProfile.vue";
 import StatsPage from "./components/StatsPage.vue";
 import LandingPage from './components/LandingPage.vue';
+import AdminMedicines from "./components/AdminMedicines.vue";
 const routes = [
   // --- Public Routes ---
   {
@@ -89,6 +90,12 @@ const routes = [
     name: "StatsPage",
     component: StatsPage,
   },
+  {
+    path: "/admin-medicines",
+    name: "AdminMedicines",
+    component: AdminMedicines,
+  },
+  
 ];
 
 const router = createRouter({

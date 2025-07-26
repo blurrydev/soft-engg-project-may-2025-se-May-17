@@ -1,15 +1,7 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
-            integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
-            crossorigin="anonymous"/>
-      <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
-            crossorigin="anonymous"/>
-    </head>
+    <!-- ... (head links omitted for brevity) ... -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-info fixed-top">
       <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar">
         <span class="navbar-toggler-icon"></span>
@@ -20,13 +12,18 @@
             <h3>SilverCare</h3>
           </a>
         </div>
-        <div class="navbar-nav ml-auto" v-if='role'>
+        <div class="navbar-nav ml-auto" v-if="role">
           <!-- Notification Bell Icon -->
-          <div v-if="role === 'senior_citizen'" class="nav-item position-relative mr-3" @click="toggleModal">
+          <div v-if="role === 'senior_citizen'|| role==='care_giver'" class="nav-item position-relative mr-3" @click="toggleModal">
             <i class="fa fa-bell text-white" style="font-size: 24px; cursor: pointer;"></i>
             <span v-if="notificationCount > 0" class="badge badge-danger badge-pill notification-badge">
               {{ notificationCount }}
             </span>
+          </div>
+          <div v-if="role === 'senior_citizen'|| role==='care_giver'">
+          <a class="nav-link profile-icon-link" href="#" @click="showHealthEntryModal = true">
+            <i class="fa fa-stethoscope"></i>
+          </a>
           </div>
           <div class="nav-item dropdown-container">
             <a class="nav-link profile-icon-link" href="#">
@@ -34,17 +31,21 @@
             </a>
             <div class="dropdown-menu-hover">
               <template v-if="role==='care_giver'">
-              <a class="dropdown-item" href="/cg">Home</a>
+                <a class="dropdown-item" href="/cg">Home</a>
               </template>
               <template v-if="role==='senior_citizen'">
-              <a class="dropdown-item" href="/sc">Home</a>
+                <a class="dropdown-item" href="/sc">Home</a>
               </template>
               <template v-if="role === 'senior_citizen' || role === 'care_giver'">
-              <a class="dropdown-item" href="/profile">My Profile</a>
-              <a class="dropdown-item" href="/stats">Reports</a>
+                <a class="dropdown-item" href="/profile">My Profile</a>
+                <a class="dropdown-item" href="/stats">Reports</a>
               </template>
               <template v-if="role==='care_giver'">
-              <a class="dropdown-item" @click="memberDetails">Member Details</a>
+                <a class="dropdown-item" @click="memberDetails">Member Details</a>
+              </template>
+              <template v-if="role==='admin'">
+                <a class="dropdown-item" href="/admin">Home</a>
+                <a class="dropdown-item" href="/admin-medicines">Medicines</a>
               </template>
               <div class="dropdown-divider"></div>
               <a class="dropdown-item logout-item" @click="logout">Logout</a>
@@ -53,35 +54,46 @@
         </div>
       </div>
     </nav>
+    <HealthEntry
+      v-if="showHealthEntryModal"
+      :role="role"
+      @close="showHealthEntryModal = false"
+    />
     <NotificationModal
-        :show="showModal"
-        @close="showModal = false"
-        @updated="getNotificationCount"
-      />
-    </div>
+      :show="showModal"
+        :role="role"
+      @close="showModal = false"
+      @updated="getNotificationCount"
+    />
+  </div>
 </template>
 
-
-<script setup >
+<script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import NotificationModal from "@/components/NotificationModal.vue"; 
-import apiService from '@/services/apiService';
+import NotificationModal from "@/components/NotificationModal.vue"
+import HealthEntry from "@/components/HealthEntry.vue"
+import apiService from '@/services/apiService'
+
 const role = ref(null)
 const router = useRouter()
-//const route = useRoute()
 const showModal = ref(false)
 const notificationCount = ref(0)
+const showHealthEntryModal = ref(false)
+
 onMounted(() => {
-  role.value = sessionStorage.getItem('role')
-  if (role.value === "senior_citizen") {
-    getNotificationCount()
+  const storedRole = sessionStorage.getItem('role')
+  if (storedRole) {
+    role.value = storedRole
+    if (storedRole === "senior_citizen") {
+      getNotificationCount()
+    }
   }
 })
+
 function toggleModal() {
   showModal.value = true
 }
-
 async function getNotificationCount() {
   try {
     const res = await apiService.get("/sc/pending-caregiver-requests")
@@ -91,12 +103,12 @@ async function getNotificationCount() {
   }
 }
 function logout() {
-    sessionStorage.clear();
-    router.push('/login');
-  }
+  sessionStorage.clear()
+  router.push('/login')
+}
 function memberDetails() {
-    router.push('/cg/user_101/manageDependants');
-  }
+  router.push('/cg/user_101/manageDependants')
+}
 </script>
 
 <style>
@@ -107,6 +119,7 @@ function memberDetails() {
   font-style: italic;
 }
 
+
 .navbar ul {
   list-style-type: none;
   padding: 0;
@@ -114,9 +127,11 @@ function memberDetails() {
   justify-content: space-around;
 }
 
+
 .navbar li {
   display: inline;
 }
+
 
 .navbar a {
   color: white !important;
@@ -127,13 +142,16 @@ function memberDetails() {
   cursor: pointer; /* Change cursor to pointer */
 }
 
+
 .navbar a:hover {
   font-weight: bold;
 }
 
+
 .navbar .fa {
   font-size: 18px;
 }
+
 
 .text-dark {
   color: white !important;
@@ -141,6 +159,7 @@ function memberDetails() {
 .dropdown-container {
   position: relative;
 }
+
 
 .dropdown-menu-hover {
   position: absolute;
@@ -159,11 +178,13 @@ function memberDetails() {
   transition: all 0.25s ease-out;
 }
 
+
 .dropdown-container:hover .dropdown-menu-hover {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
 }
+
 
 .dropdown-menu-hover .dropdown-item {
   display: block;
@@ -173,15 +194,18 @@ function memberDetails() {
   font-weight: 500;
 }
 
+
 .dropdown-menu-hover .dropdown-item:hover {
   background-color: #f0f0f0;
 }
+
 
 .dropdown-divider {
   height: 1px;
   background-color: #eee;
   margin: 0.5rem 0;
 }
+
 
 .logout-item {
   color: #d9534f !important;
@@ -195,5 +219,29 @@ function memberDetails() {
   padding: 2px 6px;
   border-radius: 50%;
 }
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1050;  /* Make sure it's on top */
+}
 
-</style>
+
+/* Modal Content */
+.modal-content {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 10px;
+  width: 100px;
+  max-width: 30%;
+  z-index: 1060;  /* Ensure it's above overlay */
+}
+
+</style> 

@@ -93,6 +93,7 @@ export default {
           sessionStorage.setItem("role", role);
           sessionStorage.setItem("user_id", user_id);
           sessionStorage.setItem("first_name", decodedToken.name);
+          sessionStorage.setItem("user_name", decodedToken.username)
           sessionStorage.setItem("loggedIn", "true");
 
           this.message = "Logged in successfully! Redirecting...";

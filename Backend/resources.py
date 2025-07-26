@@ -225,7 +225,6 @@ class AllMedicineNames(Resource):
     def options(self):
         return {}, 200
 
-#Edit medicine
 @sc.route('/edit-medicine/<int:medicine_id>', methods=["PUT", "OPTIONS"])
 class EditMedicine(Resource):
     @jwt_required()
@@ -239,7 +238,6 @@ class EditMedicine(Resource):
             return {'message': 'Unauthorized'}, 403
         # Check if the medicine exists and belongs to the user
         medicine = Medicine.query.filter_by(id=medicine_id).first()
-
 
         if not medicine:
             return {'message': 'Medicine not found or unauthorized'}, 404
@@ -256,7 +254,11 @@ class EditMedicine(Resource):
             db.session.rollback()
             return {'message': 'Failed to update medicine', 'error': str(e)}, 500
 
-#Delete medicine
+    def options(self,medicine_id):
+        """Handle OPTIONS request for CORS pre-flight."""
+        return {}, 200  # Respond with 200 status for pre-flight requests
+
+# Delete medicine
 @sc.route('/delete-medicine/<int:medicine_id>', methods=["DELETE", "OPTIONS"])
 class DeleteMedicine(Resource):
     @jwt_required()
@@ -280,8 +282,10 @@ class DeleteMedicine(Resource):
         except Exception as e:
             db.session.rollback()
             return {'message': 'Failed to delete medicine', 'error': str(e)}, 500
-    def options(self):
-        return {}, 200
+
+    def options(self,medicine_id):
+        """Handle OPTIONS request"""
+        return {}, 200  # Return a 200 response with no content, as it's a pre-flight request
 
 #<---------------------------------------------------------------------------------------------------------------->
 
@@ -1563,9 +1567,9 @@ class UpcomingMedications(Resource):
 
             # Determine which slots should be shown
             slots = []
-            if 4 <= current_hour < 24:
+            if 4 <= current_hour < 10:
                 slots.extend(['breakfast_before', 'breakfast_after'])
-            if 10 <= current_hour < 24:
+            if 10 <= current_hour < 16:
                 slots.extend(['lunch_before', 'lunch_after'])
             if 16 <= current_hour < 24:
                 slots.extend(['dinner_before', 'dinner_after'])
@@ -1640,11 +1644,33 @@ class UpcomingMedications(Resource):
             }, 500
         
 def filter_meds_by_time(meds, valid_slots, user_id=None):
-    """Filter medicine slots by upcoming 3-hour window"""
+    """Filter medicine slots by upcoming 3-hour window, excluding marked as taken"""
     upcoming = []
+    
+    # Iterate over all the medications
     for med in meds:
+        is_taken = False
+        
+        # Check if any of the slots is marked as taken today
         for slot in valid_slots:
-            if getattr(med, slot, False):  # Defensive valid attribute check
+            # Check the status table if the current slot is marked as taken
+            status_entry = Status.query.filter_by(
+                user_med_map_id=med.id,
+                date=datetime.utcnow().date(),  # Check for today's status
+                **{slot: True}  # Check if the slot is marked as taken
+            ).first()
+            
+            if status_entry:  # If found, it means the medicine is marked as taken
+                is_taken = True
+                break
+        
+        # If the medicine is already taken, skip it
+        if is_taken:
+            continue
+        
+        # If the medicine is not marked as taken, add it to the upcoming list
+        for slot in valid_slots:
+            if getattr(med, slot, False):  # Check if the slot exists for this medicine
                 upcoming.append({
                     "user_id": user_id,
                     "medicine_id": med.medicine_id,
@@ -1654,7 +1680,9 @@ def filter_meds_by_time(meds, valid_slots, user_id=None):
                     "end_date": med.end_date.isoformat(),
                     "reminder_slot": slot.replace('_', ' ').capitalize()
                 })
+    
     return upcoming
+
 
 # <-------------------------------------Today's medication for Senior Citizen------------------------------------>
 
@@ -1791,19 +1819,33 @@ class HealthEntry(Resource):
     @sc.expect(sc.model('HealthEntry', {
         'bp_systolic': fields.Integer(required=True),
         'bp_diastolic': fields.Integer(required=True),
-        'sugar_level': fields.Float(required=True)
+        'sugar_level': fields.Float(required=True),
+        'senior_id': fields.Integer(required=False)  # Optional for caregiver role
     }), validate=True)
     def post(self):
-        """Record a daily health entry for the logged-in senior citizen"""
+        """Record a daily health entry for the logged-in senior citizen or a caregiver for their senior"""
         user_id = get_jwt_identity()
+        user_role = current_user.role
         data = request.get_json()
+
+        # Determine the ID of the senior citizen
+        if user_role == 'care_giver' and 'senior_id' in data:
+            senior_id = data['senior_id']
+        elif user_role == 'senior_citizen':
+            senior_id = user_id  # Use the logged-in senior citizen's ID
+        else:
+            return {"error": "Unauthorized action."}, 403
+
         try:
-            today = datetime.utcnow().date()
-            existing_entry = DailyHealthEntry.query.filter_by(user_id=user_id, date=today).first()
+            today = datetime.utcnow().date()  # Get today's date (no time)
+            existing_entry = DailyHealthEntry.query.filter_by(user_id=senior_id).filter(func.date(DailyHealthEntry.date) == today).first()  # Compare the date part only
+            
             if existing_entry:
                 return {"error": "Health entry already exists for today."}, 400
+
+            # Create a new health entry if none exists for today
             new_entry = DailyHealthEntry(
-                user_id=user_id,
+                user_id=senior_id,
                 date=today,
                 bp_systolic=data.get("bp_systolic"),
                 bp_diastolic=data.get("bp_diastolic"),

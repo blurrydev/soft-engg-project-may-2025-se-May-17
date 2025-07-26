@@ -26,6 +26,7 @@ export default {
   name: "NotificationModal",
   props: {
     show: Boolean,
+    role:String
   },
   emits: ['close', 'updated'],
   data() {
@@ -39,6 +40,12 @@ export default {
       this.$emit("close");
     },
     async fetchRequests() {
+      if (this.role !== 'senior_citizen') {
+    // Clear requests and stop loading if role is not senior citizen
+    this.requests = [];
+    this.loading = false;
+    return;
+  }
       this.loading = true;
       try {
         const res = await apiService.get("/sc/pending-caregiver-requests");

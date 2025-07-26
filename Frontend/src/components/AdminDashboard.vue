@@ -22,9 +22,8 @@
         />
 
         <div v-if="searchResults.length > 0" class="search-results mt-3">
-          <p class="fw-semibold mb-2">Existing Medicines:</p>
-
-          <div class="search-scroll-wrapper">
+          <div v-if="searchQuery" class="search-scroll-wrapper">
+            <p class="fw-semibold mb-2">Existing Medicines:</p>
             <ul class="list-group mb-2">
               <li
                 v-for="(med, index) in searchResults"
