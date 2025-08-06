@@ -369,6 +369,8 @@ class AssignMedicine(Resource):
                     "dinner_before": assignment.dinner_before,
                     "dinner_after": assignment.dinner_after
                 }}, 201
+        except ValueError:
+            return {"error": "Invalid date format. Use YYYY-MM-DD."}, 400
         except Exception as e:
             db.session.rollback()
             return {"error": str(e)}, 500
@@ -1143,10 +1145,10 @@ class AllMedicines(Resource):
             # Initialize container
             mappings = []
 
-            if user.role == 'senior':
+            if user.role in ['senior', 'senior_citizen']:
                 mappings = UserMedMap.query.filter_by(user_id=user_id).all()
 
-            elif user.role == 'caregiver':
+            elif user.role in ['caregiver', 'care_giver']:
                 senior_ids = db.session.query(CaregiverSeniorMap.senior_id).filter_by(
                     caregiver_id=user_id, status='approved'
                 ).all()

@@ -28,38 +28,53 @@ login_model = api.model('Login', {
 class Signup(Resource):
     @api.expect(signup_model)
     def post(self):
-        """Signup for a new account"""
-        data = request.get_json()
-        
-        if User.query.filter_by(username=data['username']).first():
-            return {'message': 'Username already exists'}, 400
-        
+        data = request.get_json() or {}
+
+        # List of required fields
+        required_fields = ['first_name', 'last_name', 'username', 'password', 'confirm_password']
+
+        missing = [field for field in required_fields if not data.get(field)]
+        if missing:
+            return {
+                'message': f"Missing required fields: {', '.join(missing)}"
+            }, 400
+
         if data['password'] != data['confirm_password']:
             return {'message': 'Passwords do not match'}, 400
+
+        if User.query.filter_by(username=data['username']).first():
+            return {'message': 'Username already exists'}, 400
 
         user = User(
             first_name=data['first_name'],
             last_name=data['last_name'],
             username=data['username'],
-            role=data.get('role', 'user'),
+            role=data.get('role', 'senior_citizen'),
             profile_picture=data.get('profile_picture'),
             relation=data.get('relation')
         )
+
         user.set_password(data['password'])
-        
-        db.session.add(user)
-        db.session.commit()
-        
-        return {'message': 'User registered successfully'}, 201
+        try:
+            db.session.add(user)
+            db.session.commit()
+            return {'message': 'User registered successfully'}, 201
+        except Exception as e:
+            db.session.rollback()
+            return {'message': f'Failed to register user: {str(e)}'}, 500
+
 
 @api.route('/login')
 class Login(Resource):
     @api.expect(login_model)
     def post(self):
-        """Login to an existing account"""
-        data = request.get_json()
-        user = User.query.filter_by(username=data['username']).first()
+        data = request.get_json() or {}
 
+        # Check required fields explicitly
+        if not data.get('username') or not data.get('password'):
+            return {'message': 'Missing username or password'}, 400
+
+        user = User.query.filter_by(username=data['username']).first()
         if user and user.check_password(data['password']):
             access_token = create_access_token(
                 identity=user.id,
@@ -76,8 +91,9 @@ class Login(Resource):
                 'user_id': user.id,
                 'role': user.role
             }, 200
-        
+
         return {'message': 'Invalid credentials'}, 401
+
     
 @api.route('/protected')
 class Protected(Resource):
