@@ -46,7 +46,7 @@
     <select id="role" v-model="role" required>
       <option value="">Select Role</option>
       <option value="care_giver">Care Giver</option>
-      <option value="senior_citizen">Senior Citizen</option>
+      <option value="senior_citizen">Dependent</option>
     </select>
 
     <button type="submit">Register</button>
@@ -55,7 +55,7 @@
           <p v-if="message" :class="{ error: !success, success: success }">{{ message }}</p>
 
           <div class="mt-2">
-            <span style="font-size: smaller">
+            <span style="color: white;">
               Already have an account?
               <a href="/login">Login here</a>
             </span>
@@ -250,6 +250,16 @@ p.error {
 
 .form-row > div {
   flex: 1; /* makes both fields equal width */
+}
+.form-container a {
+  color: #00bfff; /* bright cyan for contrast */
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+.form-container a:hover {
+  color: #1ec8ff; /* lighter on hover */
+  text-decoration: none; /* optional: remove underline on hover */
 }
 
 </style>
