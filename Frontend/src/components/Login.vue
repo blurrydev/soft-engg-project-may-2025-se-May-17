@@ -38,7 +38,7 @@
           </p>
 
           <div class="mt-2">
-            <span style="font-size: smaller" >
+            <span style="color:white" >
               Not yet registered? <a href="/signup">Click here</a>
             </span>
           </div>
@@ -222,6 +222,16 @@ p.success {
 
 p.error {
   color: #ff6b6b;
+}
+.form-container a {
+  color: #00bfff; /* bright cyan for contrast */
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+.form-container a:hover {
+  color: #1ec8ff; /* lighter on hover */
+  text-decoration: none; /* optional: remove underline on hover */
 }
 
 </style>
